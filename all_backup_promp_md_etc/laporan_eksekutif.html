@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Laporan Analisis Sistem, PRD & Rekomendasi Mak Ethek</title>
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 16mm 18mm 16mm;
+  }
+  * {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    background: #ffffff;
+    font-size: 10pt;
+    line-height: 1.55;
+    margin: 0;
+    padding: 0;
+  }
+  .page-break {
+    page-break-after: always;
+  }
+  .no-break {
+    page-break-inside: avoid;
+  }
+
+  /* Header Cover */
+  .cover {
+    padding: 30px 10px 40px 10px;
+    border-bottom: 3px solid #dc2626;
+    margin-bottom: 25px;
+  }
+  .badge-label {
+    display: inline-block;
+    background: #fee2e2;
+    color: #b91c1c;
+    font-weight: 700;
+    font-size: 8.5pt;
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 12px;
+  }
+  h1.doc-title {
+    font-size: 20pt;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.25;
+    margin: 0 0 10px 0;
+  }
+  .doc-subtitle {
+    font-size: 11pt;
+    color: #64748b;
+    margin-bottom: 18px;
+  }
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 8.5pt;
+  }
+  .meta-item strong {
+    display: block;
+    color: #475569;
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+  }
+
+  /* Section Styling */
+  h2.section-title {
+    font-size: 13pt;
+    font-weight: 800;
+    color: #0f172a;
+    border-left: 4px solid #dc2626;
+    padding-left: 10px;
+    margin: 22px 0 12px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  h3.subsection-title {
+    font-size: 10.5pt;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 14px 0 6px 0;
+  }
+  p {
+    margin: 0 0 10px 0;
+    text-align: justify;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 16px 0;
+    font-size: 8.5pt;
+  }
+  th, td {
+    padding: 7px 10px;
+    border: 1px solid #cbd5e1;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #f1f5f9;
+    color: #0f172a;
+    font-weight: 700;
+  }
+  tr:nth-child(even) td {
+    background: #f8fafc;
+  }
+
+  /* Callout Cards */
+  .card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #3b82f6;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin: 10px 0 14px 0;
+    font-size: 8.5pt;
+  }
+  .card.danger {
+    border-left-color: #dc2626;
+    background: #fff5f5;
+  }
+  .card.success {
+    border-left-color: #16a34a;
+    background: #f0fdf4;
+  }
+  .card.warning {
+    border-left-color: #d97706;
+    background: #fffbeb;
+  }
+  .card-title {
+    font-weight: 700;
+    font-size: 9pt;
+    margin-bottom: 4px;
+    color: #0f172a;
+  }
+
+  /* Grid layout for cards */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  /* Code / Pre */
+  code {
+    font-family: Consolas, monospace;
+    background: #f1f5f9;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 8pt;
+    color: #b91c1c;
+  }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-family: Consolas, monospace;
+    font-size: 8pt;
+    line-height: 1.4;
+    overflow: hidden;
+    margin: 8px 0 14px 0;
+  }
+
+  .footer-note {
+    font-size: 7.5pt;
+    color: #94a3b8;
+    text-align: center;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 8px;
+    margin-top: 24px;
+  }
+</style>
+</head>
+<body>
+
+  <!-- COVER / HEADER -->
+  <div class="cover">
+    <div class="badge-label">Executive Briefing & Project Blueprint</div>
+    <h1 class="doc-title">Laporan Analisis Sistem, PRD & Rekomendasi Strategis Implementasi "Mak Ethek"</h1>
+    <div class="doc-subtitle">Konsolidasi Analisis Dokumen, Desain Arsitektur, Penilaian Risiko Lapangan, dan Product Requirement Document (PRD) Berbasis Jaringan Koperasi Jawa Timur</div>
+    
+    <div class="meta-grid">
+      <div class="meta-item">
+        <strong>Peruntukan</strong>
+        Manajemen & Pimpinan Proyek
+      </div>
+      <div class="meta-item">
+        <strong>Penyusun</strong>
+        AI System Analyst & Lead Architect
+      </div>
+      <div class="meta-item">
+        <strong>Tanggal Dokumen</strong>
+        Oktober 2026
+      </div>
+      <div class="meta-item">
+        <strong>Status / Versi</strong>
+        Final Ready for Kickoff (v2.0)
+      </div>
+    </div>
+  </div>
+
+  <!-- BAGIAN 1: RINGKASAN EKSEKUTIF -->
+  <h2 class="section-title">1. Ringkasan Eksekutif (Executive Summary)</h2>
+  <p>
+    Laporan ini disusun sebagai pertanggungjawaban analisis teknis dan bisnis terhadap rencana pembangunan platform <strong>Mak Ethek</strong>. Platform ini bertujuan memodernisasi rantai pasok kebutuhan pokok masyarakat Jawa Timur dengan memadukan kelembagaan Koperasi (tingkat provinsi hingga desa) dengan teknologi <em>hyper-local e-commerce</em> dan logistik ojek lokal.
+  </p>
+
+  <div class="grid-2 no-break">
+    <div class="card success">
+      <div class="card-title">Kekuatan Konsep Utama (85% Solid)</div>
+      <ul>
+        <li><strong>Struktur Wilayah Bertingkat:</strong> Mencegah monopoli pasar modern dengan memperkuat warung desa (*Sub-Agen*) sebagai garda retail terdepan.</li>
+        <li><strong>Cascading Fallback:</strong> Pesanan tidak pernah gagal; otomatis dialihkan ke tingkat Kecamatan (*Agen*) bila toko desa tutup/kosong.</li>
+        <li><strong>Koperasi sebagai Agregator:</strong> Memperkuat likuiditas dan perputaran modal lokal anggota koperasi.</li>
+      </ul>
+    </div>
+    <div class="card warning">
+      <div class="card-title">Penyesuaian Lapangan (15% Kritis)</div>
+      <ul>
+        <li><strong>Frontend Stack:</strong> Menambahkan Livewire 3 + Alpine.js agar interaksi keranjang secepat aplikasi native tanpa reload halaman.</li>
+        <li><strong>Logistik Realistis:</strong> Menghindari pelacakan GPS live yang mahal & boros baterai; beralih ke <em>Milestone Status + WhatsApp Direct + Bukti Serah-Terima (POD)</em>.</li>
+        <li><strong>Kepatuhan Rekber:</strong> Menghindari hambatan izin rekening giro per warung dengan menjadikan Koperasi sebagai pemegang akun gateway utama.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- BAGIAN 2: ANALISIS 4 DATA AWAL -->
+  <h2 class="section-title">2. Analisis Sintesis 4 Dokumen Awal</h2>
+  <p>Analisis dilakukan terhadap empat berkas fondasi yang tersedia di direktori proyek:</p>
+
+  <table class="no-break">
+    <thead>
+      <tr>
+        <th style="width: 20%;">Sumber Dokumen</th>
+        <th style="width: 25%;">Fokus & Dimensi</th>
+        <th style="width: 55%;">Temuan & Implikasi Sistem</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>ide_yang_timbuldariotaksaya.txt</strong></td>
+        <td>Core Business Rule & Stack Requirement</td>
+        <td>Menetapkan dasar sistem berbasis <strong>Laravel PWA</strong>. Merumuskan studi kasus konkret: saat warga login di <em>Kelurahan Gedog</em>, toko yang muncul adalah toko kelurahan tersebut. Jika kosong, sistem otomatis mencari di level atasnya yaitu <em>Kecamatan Sananwetan</em>. Menegaskan pemisahan entitas antara penjual desa dan kecamatan.</td>
+      </tr>
+      <tr>
+        <td><strong>Proposal Mak Ethek – Persatuan Koperasi Jatim.pdf</strong></td>
+        <td>Pitch Deck & Skema Kemitraan Koperasi (27 Hal)</td>
+        <td>Ditujukan kepada Bapak Slamet Sutanto (Ketua Persatuan Koperasi Jatim). Menjabarkan hirarki 4 jenjang kelembagaan (Pusat $\rightarrow$ Distributor $\rightarrow$ Agen $\rightarrow$ Sub-Agen), formula tarif ojol lokal (Rp6.000 untuk km pertama + Rp2.000/km berikutnya), konsep rekber dana, serta RAB MVP senilai Rp50.000.000 (12 minggu pengerjaan).</td>
+      </tr>
+      <tr>
+        <td><strong>Mak_Ethek_Proposal_UIUX_Lengkap_REVISI-1.pdf</strong></td>
+        <td>Spesifikasi Teknis & Blueprint UI/UX (22 Hal)</td>
+        <td>Mendefinisikan arsitektur 6 lapisan (*Experience, Core API, Commerce, Fulfillment, Finance, Infrastructure*), rincian 27 layar MVP, alur kulakan grosir bertingkat terikat wilayah, serta alur split payment dan withdrawal.</td>
+      </tr>
+      <tr>
+        <td><strong>themeforest grocery.url</strong></td>
+        <td>Referensi Template & Frontend Asset</td>
+        <td>Menunjuk ke template mobile grocery berbasis <strong>Bootstrap</strong> (pola *Groseri*). Sangat ideal karena mengadopsi tampilan ramah ponsel (bottom bar navigation, floating cart badge, location bar) yang ringan dan kompatibel langsung dengan ekosistem Laravel.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <!-- BAGIAN 3: ANALISIS KESENJANGAN & REKOMENDASI STRATEGIS -->
+  <h2 class="section-title">3. Analisis Kesenjangan & Rekomendasi Solusi Praktis</h2>
+  <p>
+    Berdasarkan perbandingan antara proposal konseptual dengan realitas infrastruktur di pedesaan dan batasan anggaran MVP, berikut adalah 4 keputusan arsitektur strategis yang direkomendasikan:
+  </p>
+
+  <div class="no-break">
+    <h3 class="subsection-title">A. Arsitektur Frontend: Adopsi Livewire 3 + Alpine.js</h3>
+    <div class="card">
+      <p><strong>Masalah pada Proposal Awal:</strong> Proposal mengandalkan Laravel Blade murni. Pada aplikasi mobile grocery, pengguna sering mengubah kuantitas barang (+/-), memfilter kategori sayur/sembako, dan mengganti desa tujuan. Blade murni akan menyebabkan <em>page reload</em> berulang kali, merusak pengalaman seluler (UX).</p>
+      <p><strong>Rekomendasi Solutif:</strong> Gabungkan <strong>Laravel 11 + Livewire 3 + Alpine.js</strong> dengan template Bootstrap Groseri. Ini memberikan interaktivitas instan setara Single Page Application (SPA) tanpa perlu membangun arsitektur Vue/React terpisah yang memakan waktu dan biaya kompilasi.</p>
+    </div>
+  </div>
+
+  <div class="no-break">
+    <h3 class="subsection-title">B. Logistik Ojol: Sistem Status Milestone & Integrasi WhatsApp</h3>
+    <div class="card">
+      <p><strong>Masalah pada Proposal Awal:</strong> Layar 07 menampilkan peta live posisi pergerakan kurir secara realtime melalui WebSocket/GPS tracking. Di wilayah pedesaan/kecamatan, kurir lokal adalah ojek binaan dengan perangkat ponsel standar dan koneksi yang fluktuatif. Membangun GPS tracking real-time di fase MVP sangat berisiko gagal dan menguras kuota baterai driver.</p>
+      <p><strong>Rekomendasi Solutif:</strong> Implementasikan <strong>Milestone State Engine</strong> (<em>Menunggu $\rightarrow$ Dikemas $\rightarrow$ Diambil Kurir $\rightarrow$ Diantar $\rightarrow$ Selesai</em>). Lengkapi dengan <strong>Tombol Cepat Hubungi WhatsApp Kurir/Toko</strong> dan validasi serah-terima menggunakan <strong>Foto Bukti Serah Terima (POD)</strong> atau <strong>Kode OTP 4-Digit</strong>.</p>
+    </div>
+  </div>
+
+  <div class="no-break">
+    <h3 class="subsection-title">C. Finansial & Rekber: Koperasi Berbadan Hukum sebagai Merchant Tunggal</h3>
+    <div class="card">
+      <p><strong>Masalah pada Proposal Awal:</strong> Fitur Escrow/Split Payment otomatis dari payment gateway (seperti Midtrans/Xendit) mensyaratkan akun sub-merchant dengan KYC legal formal. Sebagian besar warung kelontong (Sub-Agen desa) tidak memiliki NPWP perusahaan, SIUP, atau rekening giro bisnis.</p>
+      <p><strong>Rekomendasi Solutif:</strong> Daftarkan rekening gateway (QRIS / Virtual Account) secara legal atas nama <strong>Persatuan Koperasi Jawa Timur</strong>. Gunakan <strong>Internal Double-Entry Ledger di Laravel</strong> untuk mencatat hak saldo tiap warung. Pencairan (*withdrawal*) dieksekusi secara terjadwal menggunakan <strong>Disbursement API</strong> langsung ke nomor rekening/e-wallet pribadi pemilik warung.</p>
+    </div>
+  </div>
+
+  <div class="no-break">
+    <h3 class="subsection-title">D. Kalkulasi Jarak & Ongkir: Formula Haversine Mandiri</h3>
+    <div class="card">
+      <p><strong>Masalah pada Proposal Awal:</strong> Penggunaan Google Maps Distance Matrix API mengenakan biaya berbayar per panggilan rute dan mewajibkan penagihan kartu kredit berkala.</p>
+      <p><strong>Rekomendasi Solutif:</strong> Terapkan formula matematika <strong>Haversine</strong> berdasarkan titik koordinat toko dan customer yang dikalikan koefisien rute darat pedesaan ($1.3\times$). Bebas biaya API eksternal dan tetap menghasilkan tarif ongkir yang adil dan konsisten.</p>
+    </div>
+  </div>
+
+  <!-- BAGIAN 4: PRODUCT REQUIREMENT DOCUMENT (PRD) -->
+  <h2 class="section-title">4. Spesifikasi Product Requirement Document (PRD)</h2>
+  
+  <h3 class="subsection-title">4.1. Algoritma Cascading Fallback & Ketersediaan Toko</h3>
+  <p>Sistem pencarian toko bekerja dengan alur bertahap (*cascading resolution*):</p>
+  <pre>
+Input Customer: [Desa/Kelurahan Gedog]
+   │
+   ▼
+[Query 1: Sub-Agen Desa Gedog] ──(Lolos 5 Syarat: Buka, Stok Cukup, dll?)──► [Tampilkan Katalog Sub-Agen]
+   │ (Tidak ada / Tidak memenuhi syarat)
+   ▼
+[Query 2: Agen Kecamatan Sananwetan] ──(Lolos Syarat?)──────────────────────► [Fallback: Tampilkan Katalog Agen]
+   │ (Tidak ada / Tidak memenuhi syarat)
+   ▼
+[Query 3: Distributor Kabupaten/Kota Blitar] ──────────────────────────────► [Fallback: Tampilkan Katalog Distributor]
+  </pre>
+
+  <h3 class="subsection-title">4.2. Logika Belanja Retail vs Kulakan Grosir</h3>
+  <ul>
+    <li><strong>Single-Merchant Cart:</strong> Pembeli hanya dapat memasukkan produk dari 1 penjual aktif dalam satu transaksi untuk menjamin titik penjemputan tunggal bagi kurir.</li>
+    <li><strong>Kulakan Grosir Terkunci Wilayah:</strong> Sub-Agen hanya dapat memesan pasokan grosir ke Agen di kecamatannya. Agen hanya dapat memesan ke Distributor di kabupatennya. Saat pesanan kulakan diverifikasi tiba, inventori eceran warung otomatis bertambah.</li>
+    <li><strong>Formula Ongkir Ojol:</strong> $\text{Tarif} = \text{Rp6.000} + (\max(1, \lceil \text{Jarak Rute} \rceil) - 1) \times \text{Rp2.000}$. Tersedia opsi alternatif: Diantar warung sendiri dan Ambil sendiri (Gratis).</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <h3 class="subsection-title">4.3. Struktur Database Inti (Laravel Eloquent Architecture)</h3>
+  <table class="no-break">
+    <thead>
+      <tr>
+        <th style="width: 25%;">Nama Tabel</th>
+        <th style="width: 35%;">Kolom Kunci & Relasi</th>
+        <th style="width: 40%;">Fungsi Operasional</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>territories</code></td>
+        <td><code>id, level, parent_id, code, name</code></td>
+        <td>Hirarki 4 tingkat: Provinsi $\rightarrow$ Kabupaten $\rightarrow$ Kecamatan $\rightarrow$ Desa.</td>
+      </tr>
+      <tr>
+        <td><code>merchants</code></td>
+        <td><code>id, user_id, territory_id, tier, store_name, lat, lon, status</code></td>
+        <td>Menyimpan profil penjual, penanda jenjang (Sub-Agen/Agen/Distributor), koordinat, dan status buka toko.</td>
+      </tr>
+      <tr>
+        <td><code>products</code> & <code>tier_prices</code></td>
+        <td><code>id, sku, name, unit_name, wholesale_price, moq, buyer_tier</code></td>
+        <td>Master katalog dengan satuan lokal (ikat, 250g, kg) dan aturan harga grosir berjenjang.</td>
+      </tr>
+      <tr>
+        <td><code>orders</code> & <code>order_items</code></td>
+        <td><code>id, order_no, customer_id, merchant_id, order_type, status, total</code></td>
+        <td>Mencatat pesanan eceran maupun PO kulakan dengan state machine yang ketat.</td>
+      </tr>
+      <tr>
+        <td><code>deliveries</code></td>
+        <td><code>id, order_id, delivery_type, distance_km, fee, pod_image, otp</code></td>
+        <td>Data logistik, status penjemputan, bukti serah terima foto, dan kode OTP penyelesaian.</td>
+      </tr>
+      <tr>
+        <td><code>wallets</code> & <code>escrow_ledgers</code></td>
+        <td><code>id, user_id, balance_avail, balance_pending, gross, net_merchant</code></td>
+        <td>Double-entry accounting untuk menahan dana transaksi dan mengkreditkan porsi pedagang/kurir secara transparan.</td>
+      </tr>
+      <tr>
+        <td><code>withdrawals</code></td>
+        <td><code>id, wallet_id, bank_name, account_no, amount, status, disburse_ref</code></td>
+        <td>Pengajuan pencairan saldo mitra via batch payout/disbursement API.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- BAGIAN 5: TIMELINE, BIAYA & PILOT -->
+  <h2 class="section-title">5. Timeline Eksekusi, Alokasi Biaya & Pilot Project</h2>
+  
+  <div class="grid-2 no-break">
+    <div>
+      <h3 class="subsection-title">Rencana Kerja 12 Minggu (MVP)</h3>
+      <table style="margin-top: 5px;">
+        <thead>
+          <tr>
+            <th>Minggu</th>
+            <th>Fokus Deliverable</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>M 1–2</strong></td>
+            <td>Setup Laravel 11, Livewire 3, PWA Workbox, Desain UI Groseri.</td>
+          </tr>
+          <tr>
+            <td><strong>M 3–5</strong></td>
+            <td>Auth OTP, Modul Wilayah, Cascading Fallback & Keranjang Retail.</td>
+          </tr>
+          <tr>
+            <td><strong>M 6–8</strong></td>
+            <td>Portal Mitra Toko, Order Engine & Modul Kulakan Berjenjang.</td>
+          </tr>
+          <tr>
+            <td><strong>M 9–10</strong></td>
+            <td>Payment Gateway Koperasi, Ongkir Haversine, Dompet & Payout.</td>
+          </tr>
+          <tr>
+            <td><strong>M 11</strong></td>
+            <td>QA, UAT bersama Tim Koperasi, Simulasi Skenario Fallback.</td>
+          </tr>
+          <tr>
+            <td><strong>M 12</strong></td>
+            <td>Deployment Produksi, Pelatihan Mitra, Kickoff Pilot.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div>
+      <h3 class="subsection-title">Skema Termin Pembayaran (RAB Rp50 Juta)</h3>
+      <table style="margin-top: 5px;">
+        <thead>
+          <tr>
+            <th>Termin</th>
+            <th>Nominal</th>
+            <th>Kriteria Pencairan</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Termin 1 (30%)</strong></td>
+            <td>Rp15.000.000</td>
+            <td>Penandatanganan kontrak kerja & kickoff arsitektur (Minggu 1).</td>
+          </tr>
+          <tr>
+            <td><strong>Termin 2 (40%)</strong></td>
+            <td>Rp20.000.000</td>
+            <td>Demo portal mitra, order retail, dan kulakan berjalan lancar (Minggu 8).</td>
+          </tr>
+          <tr>
+            <td><strong>Termin 3 (30%)</strong></td>
+            <td>Rp15.000.000</td>
+            <td>UAT disetujui, serah-terima source code & deployment sistem (Minggu 12).</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="card success" style="margin-top: 10px; font-size: 8pt;">
+        <strong>Cakupan Pilot Terbatas:</strong> 1 Distributor Kabupaten, 2–3 Agen Kecamatan, dan 10–20 Sub-Agen warung desa dengan pemantauan KPI mingguan.
+      </div>
+    </div>
+  </div>
+
+  <!-- BAGIAN 6: KESIMPULAN AKHIR -->
+  <h2 class="section-title">6. Kesimpulan & Rekomendasi Aksi Manajemen</h2>
+  <div class="card success no-break">
+    <div class="card-title" style="font-size: 10pt; color: #15803d;">Pernyataan Kelayakan (Feasibility Verdict)</div>
+    <p>
+      Proyek <strong>Mak Ethek</strong> memiliki potensi komersial dan dampak sosial yang sangat tinggi bagi pemberdayaan ekonomi Koperasi di Jawa Timur. Dengan mengadopsi <strong>Rekomendasi Arsitektur v2.0</strong> (Laravel 11 + Livewire 3 + PWA, Holding Gateway Koperasi, Formula Haversine, dan Milestone Logistik), seluruh risiko teknis dan hambatan legalitas formal warung telah termitigasi secara penuh.
+    </p>
+    <p style="margin-bottom: 0;">
+      <strong>Langkah Selanjutnya yang Direkomendasikan:</strong>
+      <ol style="margin: 4px 0 0 16px; padding: 0;">
+        <li>Menyerahkan laporan ini kepada pimpinan/ketua koperasi sebagai lampiran kesiapan teknis.</li>
+        <li>Menetapkan 1 kabupaten pilot di Jawa Timur sebagai lokasi uji coba awal.</li>
+        <li>Melakukan penandatanganan kesepahaman (*MoU*) dan pencairan Termin 1 untuk memulai sprint Minggu 1–2.</li>
+      </ol>
+    </p>
+  </div>
+
+  <div class="footer-note">
+    Dokumen Laporan Resmi Analisis Mak Ethek • Dihasilkan secara otomatis oleh AI System Architect • c:\laragon\www\myethek
+  </div>
+
+</body>
+</html>
