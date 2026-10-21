@@ -42,7 +42,7 @@
                 WARGA {{ strtoupper($user->territory?->name ?? 'JATIM') }}
             </span>
             @if($user->isMerchant())
-                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-1" style="font-size: 0.68rem;">
+                <span class="badge bg-warning text-dark border border-warning px-2 py-1 fw-bold" style="font-size: 0.68rem;">
                     MITRA {{ strtoupper($user->role) }}
                 </span>
             @endif

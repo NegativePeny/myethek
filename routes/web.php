@@ -76,5 +76,15 @@ Route::prefix('driver')->name('driver.')->group(function () {
     Route::post('/{delivery_id}/complete', [DriverPortalController::class, 'completeJob'])->name('complete');
 });
 
-// Panel Audit & Rekapitulasi Holding Koperasi Jawa Timur
-Route::get('/admin', [AdminOverviewController::class, 'index'])->name('admin.index');
+use App\Http\Controllers\AdminProductController;
+
+// Panel Audit & Master Katalog Holding Koperasi Jawa Timur
+Route::prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', [AdminOverviewController::class, 'index'])->name('index');
+    Route::get('/products', [AdminProductController::class, 'index'])->name('products.index');
+    Route::get('/products/create', [AdminProductController::class, 'create'])->name('products.create');
+    Route::post('/products', [AdminProductController::class, 'store'])->name('products.store');
+    Route::get('/products/{id}/edit', [AdminProductController::class, 'edit'])->name('products.edit');
+    Route::put('/products/{id}', [AdminProductController::class, 'update'])->name('products.update');
+    Route::delete('/products/{id}', [AdminProductController::class, 'destroy'])->name('products.destroy');
+});

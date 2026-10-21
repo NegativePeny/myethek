@@ -117,8 +117,29 @@
         </div>
     </div>
 
+    <!-- Master Katalog Produk Koperasi -->
+    <div class="card border mb-3 shadow-sm bg-white">
+        <div class="card-body p-3 d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+                <div class="bg-success-subtle text-success p-2 rounded border border-success-subtle d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+                    <i class="bi bi-boxes fs-4"></i>
+                </div>
+                <div>
+                    <h6 class="fw-bold mb-0 text-dark small">Master Katalog Komoditas</h6>
+                    <small class="text-muted" style="font-size: 0.72rem;">Standarisasi produk pangan, satuan eceran, & HET grosir tier</small>
+                </div>
+            </div>
+            <a href="{{ route('admin.products.index') }}" class="btn btn-sm btn-success py-1 px-3 fw-bold" style="font-size: 0.75rem;">
+                Kelola Produk &rarr;
+            </a>
+        </div>
+    </div>
+
     <!-- Navigasi Pintas -->
     <div class="d-grid gap-2 mb-3">
+        <a href="{{ route('admin.products.create') }}" class="btn btn-outline-success py-2 small fw-semibold">
+            <i class="bi bi-plus-circle me-1"></i> Tambah Master Produk Baru
+        </a>
         <a href="{{ route('merchant.index') }}" class="btn btn-outline-dark py-2 small fw-semibold">
             <i class="bi bi-shop me-1"></i> Masuk ke Portal Toko Mitra
         </a>

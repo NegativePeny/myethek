@@ -16,7 +16,7 @@
 @section('content')
 <div class="osahan-signin p-3">
     <div class="text-center my-3">
-        <img src="/grofar/img/logo.svg" style="height: 52px;" class="mb-2" alt="Logo Mak Ethek">
+        <img src="/grofar/img/logo.png" style="height: 72px; width: 72px; object-fit: contain;" class="mb-2" alt="Logo Mak Ethek">
         <h4 class="fw-bold text-success mb-1">Mak Ethek</h4>
         <p class="text-muted small mb-0">Platform Belanja Sembako Koperasi Jawa Timur</p>
     </div>

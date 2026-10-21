@@ -33,7 +33,7 @@ class CategoryAndProductSeeder extends Seeder
                 'unit_name' => 'sak (5 kg)',
                 'base_price' => 74000,
                 'description' => 'Beras pulen kualitas unggulan langsung dari lumbung petani binaan Koperasi Jatim.',
-                'image' => null,
+                'image' => '/uploads/products/beras_lahap_5kg.jpg',
                 'tiers' => [
                     ['buyer_tier' => 'sub_agent', 'wholesale_price' => 68500, 'moq' => 5],
                     ['buyer_tier' => 'agent', 'wholesale_price' => 65000, 'moq' => 20],
@@ -48,7 +48,7 @@ class CategoryAndProductSeeder extends Seeder
                 'unit_name' => '1 liter',
                 'base_price' => 15700,
                 'description' => 'Minyak goreng subsidi kemasan hemat untuk kebutuhan memasak harian keluarga.',
-                'image' => null,
+                'image' => '/uploads/products/minyakita_bantal_1l.jpg',
                 'tiers' => [
                     ['buyer_tier' => 'sub_agent', 'wholesale_price' => 14200, 'moq' => 12],
                     ['buyer_tier' => 'agent', 'wholesale_price' => 13500, 'moq' => 60],
@@ -63,7 +63,7 @@ class CategoryAndProductSeeder extends Seeder
                 'unit_name' => '1 kg',
                 'base_price' => 17500,
                 'description' => 'Gula tebu murni manis alami produksi pabrik gula Jawa Timur.',
-                'image' => null,
+                'image' => '/uploads/products/gula_pasir_1kg.jpg',
                 'tiers' => [
                     ['buyer_tier' => 'sub_agent', 'wholesale_price' => 15800, 'moq' => 10],
                     ['buyer_tier' => 'agent', 'wholesale_price' => 15000, 'moq' => 50],
@@ -78,7 +78,7 @@ class CategoryAndProductSeeder extends Seeder
                 'unit_name' => '1 kg',
                 'base_price' => 27500,
                 'description' => 'Telur segar pilihan langsung dari peternak ayam petelur lokal Blitar.',
-                'image' => null,
+                'image' => '/uploads/products/telur_ayam_blitar.jpg',
                 'tiers' => [
                     ['buyer_tier' => 'sub_agent', 'wholesale_price' => 25000, 'moq' => 10],
                     ['buyer_tier' => 'agent', 'wholesale_price' => 24000, 'moq' => 50],
@@ -93,7 +93,7 @@ class CategoryAndProductSeeder extends Seeder
                 'unit_name' => '500 gram',
                 'base_price' => 19000,
                 'description' => 'Bawang merah segar kering, aroma tajam pas untuk bumbu tumis dan goreng.',
-                'image' => null,
+                'image' => '/uploads/products/bawang_merah_lokal.jpg',
                 'tiers' => [
                     ['buyer_tier' => 'sub_agent', 'wholesale_price' => 17000, 'moq' => 5],
                     ['buyer_tier' => 'agent', 'wholesale_price' => 15500, 'moq' => 20],
@@ -108,7 +108,7 @@ class CategoryAndProductSeeder extends Seeder
                 'unit_name' => '250 gram',
                 'base_price' => 12500,
                 'description' => 'Cabai rawit segar pedas mantap dipetik langsung dari kebun rakyat.',
-                'image' => null,
+                'image' => '/uploads/products/cabai_rawit_merah.jpg',
                 'tiers' => [
                     ['buyer_tier' => 'sub_agent', 'wholesale_price' => 11000, 'moq' => 4],
                     ['buyer_tier' => 'agent', 'wholesale_price' => 10000, 'moq' => 20],
@@ -123,7 +123,7 @@ class CategoryAndProductSeeder extends Seeder
                 'unit_name' => 'ikat',
                 'base_price' => 3000,
                 'description' => 'Kangkung hidroponik segar bebas pestisida berlebih.',
-                'image' => null,
+                'image' => '/uploads/products/kangkung_segar.jpg',
                 'tiers' => [
                     ['buyer_tier' => 'sub_agent', 'wholesale_price' => 2400, 'moq' => 10],
                     ['buyer_tier' => 'agent', 'wholesale_price' => 2000, 'moq' => 50],

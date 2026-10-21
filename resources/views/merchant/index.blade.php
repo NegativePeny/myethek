@@ -26,8 +26,8 @@
         <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <div>
-                    <span class="badge bg-dark text-white px-2 py-1 mb-1" style="font-size: 0.65rem;">
-                        TINGKAT: {{ strtoupper($merchant->tier) }}
+                    <span class="badge bg-warning text-dark border border-warning px-2 py-1 mb-1 fw-bold" style="font-size: 0.65rem;">
+                        MITRA {{ strtoupper($merchant->tier) }}
                     </span>
                     <h5 class="fw-bold text-dark mb-0 small">{{ $merchant->store_name }}</h5>
                     <small class="text-muted" style="font-size: 0.72rem;">

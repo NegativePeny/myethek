@@ -27,8 +27,8 @@
             <h5 class="fw-bold mb-0 text-dark">Profil & Operasional Toko</h5>
             <small class="text-muted" style="font-size: 0.75rem;">Konfigurasi jam buka, radius antar, dan data toko mitra</small>
         </div>
-        <span class="badge bg-dark" style="font-size: 0.7rem;">
-            {{ strtoupper($merchant->tier) }}
+        <span class="badge bg-warning text-dark border border-warning fw-bold" style="font-size: 0.7rem;">
+            MITRA {{ strtoupper($merchant->tier) }}
         </span>
     </div>
 

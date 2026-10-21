@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#10b981">
     <meta name="description" content="Mak Ethek - Platform Belanja Kebutuhan Harian Jaringan Koperasi Jawa Timur">
-    <link rel="icon" type="image/png" href="/grofar/img/logo.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="shortcut icon" href="/favicon.ico">
     <title>@yield('title', 'Mak Ethek - Belanja Kebutuhan Harian Desa')</title>
 
     <!-- PWA Manifest & App Icons -->
     <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/icons/icon-192.svg">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 
     <!-- Slick Slider -->
     <link rel="stylesheet" type="text/css" href="/grofar/vendor/slick/slick.min.css"/>
@@ -152,6 +154,52 @@
             display: none !important;
             content: none !important;
         }
+
+        /* Input group & form control styling fix (override Grofar underline style) */
+        .input-group .form-control:not(.border-0) {
+            border: 1px solid #ced4da;
+            background-color: #ffffff;
+            border-radius: 0.375rem;
+        }
+        .input-group .form-control.border-start-0 {
+            border-left: 0 !important;
+            border-top-left-radius: 0 !important;
+            border-bottom-left-radius: 0 !important;
+        }
+        .input-group .input-group-text.border-end-0 {
+            border-color: #ced4da;
+            border-top-right-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
+        }
+        .input-group:focus-within .input-group-text.border-end-0 {
+            border-color: #10b981;
+        }
+        .input-group .form-control:focus {
+            border-color: #10b981;
+            box-shadow: none;
+        }
+        textarea.form-control:not(.border-0) {
+            border: 1px solid #ced4da;
+            background-color: #ffffff;
+            border-radius: 0.375rem;
+        }
+        textarea.form-control:focus {
+            border-color: #10b981;
+            box-shadow: none;
+        }
+
+        /* Bootstrap subtle utilities fallback for badge readability */
+        .bg-warning-subtle { background-color: #fef3c7 !important; }
+        .text-warning-emphasis { color: #92400e !important; }
+        .bg-success-subtle { background-color: #dcfce7 !important; }
+        .text-success-emphasis { color: #166534 !important; }
+        .bg-info-subtle { background-color: #e0f2fe !important; }
+        .text-info-emphasis { color: #0369a1 !important; }
+        .bg-danger-subtle { background-color: #fee2e2 !important; }
+        .text-danger-emphasis { color: #991b1b !important; }
+        .badge.text-warning-emphasis, .badge.text-success, .badge.text-primary, .badge.text-danger, .badge.text-info {
+            font-weight: 600;
+        }
     </style>
     @yield('styles')
 </head>
@@ -168,7 +216,7 @@
     <div class="border-bottom p-3 bg-white sticky-top shadow-sm" style="z-index: 1020;">
         <div class="title d-flex align-items-center">
             <a href="{{ route('storefront.index') }}" class="text-decoration-none text-dark d-flex align-items-center">
-                <img class="osahan-logo me-2" src="/grofar/img/logo.svg" style="height: 28px;" alt="Logo Mak Ethek">
+                <img class="osahan-logo me-2" src="/grofar/img/logo.png" style="height: 38px; width: 38px; object-fit: contain;" alt="Logo Mak Ethek">
                 <div>
                     <h5 class="fw-bold text-success m-0" style="line-height: 1.1;">Mak Ethek</h5>
                     <span class="text-muted" style="font-size: 0.65rem; letter-spacing: 0.5px;">KOPERASI JATIM</span>
@@ -283,7 +331,7 @@
                 </div>
             @else
                 <div class="d-flex align-items-center">
-                    <img src="/grofar/img/logo.svg" style="height: 32px;" class="me-2" alt="Logo">
+                    <img src="/grofar/img/logo.png" style="height: 38px; width: 38px; object-fit: contain;" class="me-2" alt="Logo Mak Ethek">
                     <div>
                         <h6 class="mb-0 fw-bold text-success">Mak Ethek</h6>
                         <small class="text-muted">Koperasi Jatim Retail</small>
@@ -325,6 +373,7 @@
                 <li><a href="{{ route('merchant.index') }}"><i class="icofont-shop me-2"></i> Portal Mitra Warung (B2B)</a></li>
                 <li><a href="{{ route('driver.index') }}"><i class="icofont-delivery-time me-2"></i> Portal Driver Ojol Desa</a></li>
                 <li><a href="{{ route('admin.index') }}"><i class="icofont-chart-bar-graph me-2"></i> Audit Holding Koperasi</a></li>
+                <li><a href="{{ route('admin.products.index') }}"><i class="icofont-box me-2"></i> Master Katalog Produk</a></li>
             </ul>
         </li>
         <li>
