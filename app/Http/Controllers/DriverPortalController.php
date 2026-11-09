@@ -3,19 +3,25 @@
 namespace App\Http\Controllers;
 
 use App\Models\Delivery;
-use App\Models\Order;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Services\EscrowService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class DriverPortalController extends Controller
 {
     /**
-     * Dapatkan akun driver aktif (default ke driver demo Gedog).
+     * Dapatkan akun driver aktif (mengutamakan Auth user, lalu session switcher, lalu default driver demo).
      */
     protected function getActiveDriver(): User
     {
+        if (Auth::check() && Auth::user()->role === 'driver') {
+            session(['driver_portal_id' => Auth::id()]);
+            return Auth::user()->load(['wallet', 'territory']);
+        }
+
         $driverId = session('driver_portal_id');
 
         if ($driverId) {
@@ -34,7 +40,7 @@ class DriverPortalController extends Controller
     }
 
     /**
-     * Halaman Utama Portal Kurir Motor Lokal
+     * Halaman Utama Portal Mobile Driver KurirQ Mak Ethek (DRV-001 s/d DRV-010)
      */
     public function index()
     {
@@ -45,18 +51,36 @@ class DriverPortalController extends Controller
             ['balance_available' => 0, 'balance_pending' => 0]
         );
 
-        // 1. Pengantaran Siap Diambil di Sekitar Wilayah (Pending/Belum Ada Driver)
-        $availableDeliveries = Delivery::with(['order.merchant.territory', 'order.customer'])
-            ->where('delivery_type', 'ojol')
-            ->whereNull('driver_id')
-            ->whereIn('status', ['pending', 'dispatched'])
-            ->latest()
-            ->get();
+        $isPilot = (bool) config('myethek.pilot_mode', false);
 
-        // 2. Pengantaran Aktif yang Sedang Dibawa Driver Ini
-        $activeDeliveries = Delivery::with(['order.merchant.territory', 'order.customer'])
+        // DRV-002 & DRV-010: Pada mode Pilot, driver hanya melihat tugas yang telah ditugaskan kepadanya (assigned).
+        // Pada mode legacy/multi-tier, mengizinkan klaim order ojol yang masih pending.
+        if ($isPilot) {
+            $availableDeliveries = Delivery::with(['order.merchant.territory', 'order.customer', 'order.items'])
+                ->where('driver_id', $driver->id)
+                ->whereIn('status', ['assigned', 'accepted'])
+                ->latest()
+                ->get();
+        } else {
+            $availableDeliveries = Delivery::with(['order.merchant.territory', 'order.customer'])
+                ->where(function ($q) use ($driver) {
+                    $q->where(function ($sub) {
+                        $sub->where('delivery_type', 'ojol')
+                            ->whereNull('driver_id')
+                            ->whereIn('status', ['pending', 'dispatched']);
+                    })->orWhere(function ($sub2) use ($driver) {
+                        $sub2->where('driver_id', $driver->id)
+                            ->whereIn('status', ['assigned', 'accepted']);
+                    });
+                })
+                ->latest()
+                ->get();
+        }
+
+        // 2. Pengantaran Aktif yang Sedang Dibawa Driver Ini (picked_up / on_delivery)
+        $activeDeliveries = Delivery::with(['order.merchant.territory', 'order.customer', 'order.items'])
             ->where('driver_id', $driver->id)
-            ->whereIn('status', ['assigned', 'picked_up'])
+            ->whereIn('status', ['picked_up', 'on_delivery'])
             ->latest()
             ->get();
 
@@ -78,7 +102,48 @@ class DriverPortalController extends Controller
     }
 
     /**
-     * Kurir Mengambil / Mengklaim Pesanan
+     * Driver Menerima atau Menolak Tugas dengan Alasan (DRV-003)
+     */
+    public function respondAssignment(Request $request, int $deliveryId)
+    {
+        $driver = $this->getActiveDriver();
+        $delivery = Delivery::with('order')->findOrFail($deliveryId);
+
+        if ($delivery->driver_id !== null && $delivery->driver_id !== $driver->id) {
+            abort(403, 'Tugas ini bukan milik Anda (DRV-010).');
+        }
+
+        $validated = $request->validate([
+            'decision' => 'required|in:accept,reject',
+            'rejection_reason' => 'required_if:decision,reject|nullable|string|max:255',
+        ]);
+
+        if ($validated['decision'] === 'reject') {
+            $delivery->update([
+                'driver_id' => null,
+                'status' => 'unassigned',
+                'rejection_reason' => $validated['rejection_reason'],
+            ]);
+
+            $delivery->order->update([
+                'status' => 'ready_for_pickup',
+            ]);
+
+            return redirect()->route('driver.index')->with('success', "Tugas {$delivery->order->order_number} ditolak dengan alasan tercatat. Admin akan melakukan dispatch ulang.");
+        }
+
+        $delivery->update([
+            'driver_id' => $driver->id,
+            'status' => 'accepted',
+            'accepted_at' => now(),
+            'rejection_reason' => null,
+        ]);
+
+        return redirect()->route('driver.index')->with('success', "Tugas {$delivery->order->order_number} diterima. Silakan lakukan Pickup paket di Gudang Koperasi.");
+    }
+
+    /**
+     * Kurir Mengonfirmasi Pickup dari Gudang & Mulai Pengiriman (DRV-004, DRV-006)
      */
     public function takeJob(int $deliveryId)
     {
@@ -86,23 +151,26 @@ class DriverPortalController extends Controller
         $delivery = Delivery::with('order')->findOrFail($deliveryId);
 
         if ($delivery->driver_id !== null && $delivery->driver_id !== $driver->id) {
-            return redirect()->back()->with('error', 'Pesanan ini sudah diambil oleh kurir lain.');
+            return redirect()->back()->with('error', 'Pesanan ini sudah ditugaskan ke kurir lain.');
         }
 
         $delivery->update([
             'driver_id' => $driver->id,
             'status' => 'picked_up',
-            'assigned_at' => now(),
+            'assigned_at' => $delivery->assigned_at ?? now(),
+            'accepted_at' => $delivery->accepted_at ?? now(),
             'picked_up_at' => now(),
         ]);
 
-        $delivery->order->update(['status' => 'on_delivery']);
+        $delivery->order->update([
+            'status' => 'on_delivery',
+        ]);
 
-        return redirect()->route('driver.index')->with('success', "Pesanan {$delivery->order->order_number} berhasil diambil. Silakan antar ke pelanggan!");
+        return redirect()->route('driver.index')->with('success', "Paket {$delivery->order->order_number} berhasil di-pickup dari Gudang. Silakan antar ke alamat penerima!");
     }
 
     /**
-     * Kurir Menyelesaikan Serah-Terima di Lokasi Pelanggan via OTP
+     * Kurir Menyelesaikan Serah-Terima di Lokasi Pelanggan via OTP Hash + Bukti Foto POD Opsional (DRV-007, DRV-008, BR-010)
      */
     public function completeJob(Request $request, int $deliveryId, EscrowService $escrowService)
     {
@@ -117,7 +185,22 @@ class DriverPortalController extends Controller
         $result = $escrowService->releaseEscrowForOrder($delivery->order, $otp);
 
         if ($result['success']) {
-            return redirect()->route('driver.index')->with('success', "Pesanan {$delivery->order->order_number} selesai diantar! Ongkir Rp " . number_format($delivery->fee, 0, ',', '.') . " telah masuk ke dompet Anda.");
+            $podPath = $delivery->pod_image_path;
+            if ($request->hasFile('pod_image')) {
+                $file = $request->file('pod_image');
+                $filename = 'pod_' . $delivery->order->order_number . '_' . time() . '_' . Str::random(4) . '.' . $file->getClientOriginalExtension();
+                $file->storeAs('private/pod', $filename);
+                $podPath = 'private/pod/' . $filename;
+            }
+
+            if ($podPath || $request->filled('receiver_name')) {
+                $delivery->update([
+                    'pod_image_path' => $podPath,
+                    'receiver_name' => $request->input('receiver_name', $delivery->receiver_name),
+                ]);
+            }
+
+            return redirect()->route('driver.index')->with('success', "Pesanan {$delivery->order->order_number} selesai diantar! Ongkir Rp " . number_format($delivery->fee, 0, ',', '.') . " telah tercatat.");
         }
 
         return redirect()->back()->with('error', $result['message']);

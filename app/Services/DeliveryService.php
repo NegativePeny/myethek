@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Merchant;
+use App\Models\Territory;
 
 class DeliveryService
 {
@@ -12,7 +12,20 @@ class DeliveryService
     public const PLATFORM_FEE = 1000;
 
     /**
-     * Hitung jarak Haversine (km) antara koordinat toko dan pelanggan dengan faktor koreksi darat pedesaan (1.3x).
+     * Validasi apakah wilayah berada di dalam area layanan Kota Blitar (CUS-004).
+     */
+    public function isWithinBlitarServiceArea(?Territory $territory): bool
+    {
+        if (!$territory) {
+            return false;
+        }
+
+        $cityCode = config('myethek.service_city_code', '35.72');
+        return str_starts_with((string) $territory->code, $cityCode);
+    }
+
+    /**
+     * Hitung jarak Haversine (km) antara koordinat toko dan pelanggan dengan faktor koreksi darat (1.3x).
      */
     public function calculateDistance(float $lat1, float $lon1, float $lat2, float $lon2): float
     {
@@ -28,20 +41,22 @@ class DeliveryService
         $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
         $straightDistance = $earthRadiusKm * $c;
 
-        // Faktor koreksi rute darat pedesaan Jawa Timur (1.3x)
         $routeDistance = $straightDistance * 1.3;
 
         return round(max(0.5, $routeDistance), 2);
     }
 
     /**
-     * Hitung tarif ongkos kirim berdasarkan jenis pengiriman dan jarak.
+     * Hitung tarif ongkos kirim berdasarkan jenis pengiriman dan mode Pilot KurirQ (BR-013).
      */
     public function calculateShippingFee(string $deliveryType, float $distanceKm): float
     {
+        if ($deliveryType === 'kurirq' || (config('myethek.pilot_mode', false) && $deliveryType === 'ojol')) {
+            return (float) config('myethek.shipping.flat_rate_blitar', 8000);
+        }
+
         switch ($deliveryType) {
             case 'ojol':
-                // Rumus PRD: Rp6.000 + (max(1, ceil(jarak)) - 1) * Rp2.000
                 $billedKm = max(1, (int) ceil($distanceKm));
                 return (float) (self::BASE_OJOL_FEE + (($billedKm - 1) * self::PER_KM_OJOL_FEE));
 
@@ -57,14 +72,18 @@ class DeliveryService
     /**
      * Hitung seluruh komponen biaya pesanan (subtotal, shipping, platform fee, grand total).
      */
-    public function calculateTotal(float $subtotal, string $deliveryType, float $distanceKm): array
+    public function calculateTotal(float $subtotal, string $deliveryType, float $distanceKm, float $discount = 0): array
     {
         $shippingFee = $this->calculateShippingFee($deliveryType, $distanceKm);
-        $platformFee = (float) self::PLATFORM_FEE;
-        $grandTotal = $subtotal + $shippingFee + $platformFee;
+        $platformFee = config('myethek.pilot_mode', false)
+            ? (float) config('myethek.shipping.platform_fee', 0)
+            : (float) self::PLATFORM_FEE;
+
+        $grandTotal = max(0, $subtotal - $discount) + $shippingFee + $platformFee;
 
         return [
             'subtotal' => $subtotal,
+            'discount_amount' => $discount,
             'delivery_type' => $deliveryType,
             'distance_km' => $distanceKm,
             'shipping_fee' => $shippingFee,

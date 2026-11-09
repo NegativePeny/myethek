@@ -21,8 +21,64 @@
             <i class="icofont-check fs-2"></i>
         </div>
         <h5 class="fw-bold text-dark mb-1">Pesanan Berhasil Diterima!</h5>
-        <p class="text-muted small mb-0">Pesanan telah masuk ke antrean toko mitra kami.</p>
+        <p class="text-muted small mb-0">Pesanan telah masuk ke antrean sistem Mak Ethek ({{ strtoupper($order->order_type ?? 'B2C') }}).</p>
     </div>
+
+    <!-- DOKU Payment Gateway Info & Sandbox Simulator (CUS-006) -->
+    @if($order->payment)
+        <div class="p-3 mx-3 mt-3 rounded-3 border bg-white shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold small text-dark">
+                    <i class="icofont-credit-card text-primary me-1"></i> Tagihan DOKU ({{ strtoupper($order->payment->channel) }})
+                </span>
+                @if($order->payment->status === 'paid')
+                    <span class="badge bg-success text-white">LUNAS TERVERIFIKASI</span>
+                @elseif($order->payment->status === 'pending')
+                    <span class="badge bg-warning text-dark">MENUNGGU PEMBAYARAN</span>
+                @else
+                    <span class="badge bg-danger text-white">{{ strtoupper($order->payment->status) }}</span>
+                @endif
+            </div>
+
+            <div class="p-2 rounded bg-light border small mb-2">
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">No. Referensi DOKU:</span>
+                    <strong class="font-monospace text-dark">{{ $order->payment->payment_reference }}</strong>
+                </div>
+                @if(!empty($order->payment->raw_payload['virtual_account_or_qr']))
+                    <div class="d-flex justify-content-between mt-1">
+                        <span class="text-muted">Kode VA / QRIS:</span>
+                        <strong class="font-monospace text-primary text-truncate" style="max-width: 190px;">{{ $order->payment->raw_payload['virtual_account_or_qr'] }}</strong>
+                    </div>
+                @endif
+                @if($order->payment->expired_at && $order->payment->status === 'pending')
+                    <div class="d-flex justify-content-between mt-1">
+                        <span class="text-muted">Batas Waktu Bayar:</span>
+                        <span class="text-danger fw-semibold">{{ $order->payment->expired_at->format('d/m/Y H:i') }} WIB</span>
+                    </div>
+                @endif
+            </div>
+
+            @if($order->payment->status === 'pending')
+                <div class="d-flex gap-2 mt-2">
+                    <form action="{{ route('storefront.simulateDoku', $order->order_number) }}" method="POST" class="flex-grow-1">
+                        @csrf
+                        <input type="hidden" name="status" value="SUCCESS">
+                        <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold py-2">
+                            <i class="icofont-check-circled me-1"></i> Simulasi Bayar Lunas (DOKU)
+                        </button>
+                    </form>
+                    <form action="{{ route('storefront.simulateDoku', $order->order_number) }}" method="POST">
+                        @csrf
+                        <input type="hidden" name="status" value="EXPIRED">
+                        <button type="submit" class="btn btn-sm btn-outline-danger py-2">
+                            Simulasi Expired
+                        </button>
+                    </form>
+                </div>
+            @endif
+        </div>
+    @endif
 
     <!-- Order Milestone Status Stepper (Grofar Pattern) -->
     <div class="p-3 bg-white border-bottom mt-2">
@@ -32,12 +88,11 @@
             @php
                 $status = $order->status;
                 $deliveryStatus = $order->delivery->status ?? 'pending';
-                // 1: Pending, 2: Confirmed/Processing, 3: On The Way, 4: Delivered
                 $step = 1;
-                if ($status === 'confirmed' || $status === 'processing') {
+                if (in_array($status, ['paid', 'confirmed', 'processing', 'ready_for_pickup'])) {
                     $step = 2;
                 }
-                if ($deliveryStatus === 'on_delivery' || $deliveryStatus === 'picked_up') {
+                if (in_array($status, ['shipped']) || in_array($deliveryStatus, ['on_delivery', 'picked_up'])) {
                     $step = 3;
                 }
                 if ($status === 'completed' || $deliveryStatus === 'delivered') {
@@ -55,7 +110,7 @@
                     <i class="icofont-{{ $step >= 2 ? 'check-circled' : 'clock-time' }} fs-5"></i>
                 </span>
                 <span class="text small fw-semibold ms-2 {{ $step >= 2 ? 'text-dark' : 'text-muted' }}">
-                    2. Disiapkan Toko Mitra (Warung)
+                    2. Disiapkan Gudang / Toko Mitra ({{ strtoupper($order->status) }})
                 </span>
             </div>
 
@@ -87,7 +142,7 @@
                 {{ $order->delivery->completion_otp }}
             </div>
             <small class="text-secondary d-block" style="font-size: 0.68rem;">
-                Tunjukkan 4 angka ini kepada kurir ojol saat barang tiba di rumah.
+                Tunjukkan 4 angka ini kepada kurir saat barang tiba di alamat penerima.
             </small>
         </div>
     </div>
@@ -97,8 +152,8 @@
         <div class="d-flex align-items-center gap-2 mb-2">
             <i class="icofont-brand-whatsapp text-success fs-3"></i>
             <div>
-                <h6 class="mb-0 fw-bold text-dark small">Konfirmasi ke Warung Mitra</h6>
-                <small class="text-muted" style="font-size: 0.72rem;">Hubungi warung langsung bila butuh respon cepat.</small>
+                <h6 class="mb-0 fw-bold text-dark small">Konfirmasi ke Toko / Gudang Mitra</h6>
+                <small class="text-muted" style="font-size: 0.72rem;">Hubungi langsung bila butuh respon cepat.</small>
             </div>
         </div>
         <div class="d-grid">
@@ -110,8 +165,10 @@
 
     <!-- Info Alamat & Toko Pengirim -->
     <div class="p-3 bg-white border-bottom mt-3">
-        <h6 class="fw-bold mb-2 small"><i class="icofont-location-pin text-danger me-1"></i> Alamat Pengantaran</h6>
-        <p class="m-0 small text-dark fw-semibold">{{ $order->customer->name }} ({{ $order->customer->phone }})</p>
+        <h6 class="fw-bold mb-2 small"><i class="icofont-location-pin text-danger me-1"></i> Penerima & Alamat Pengantaran</h6>
+        <p class="m-0 small text-dark fw-semibold">
+            {{ $order->recipient_name ?? $order->customer->name }} ({{ $order->recipient_phone ?? $order->customer->phone }})
+        </p>
         <p class="m-0 small text-muted">{{ $order->shipping_address }}</p>
     </div>
 

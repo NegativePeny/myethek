@@ -5,21 +5,13 @@ namespace App\Services;
 use App\Models\Merchant;
 use App\Models\MerchantInventory;
 use App\Models\Product;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 
 class CartService
 {
     protected const SESSION_KEY = 'myethek_cart';
 
-    /**
-     * Ambil data mentah keranjang dari session.
-     * Struktur: [
-     *   'merchant_id' => int,
-     *   'items' => [
-     *     productId => ['product_id' => int, 'name' => string, 'unit_name' => string, 'price' => float, 'quantity' => int]
-     *   ]
-     * ]
-     */
     public function getCart(): array
     {
         return Session::get(self::SESSION_KEY, [
@@ -29,8 +21,19 @@ class CartService
     }
 
     /**
-     * Tambah produk ke keranjang belanja dengan Single-Merchant Enforcement.
-     * Jika merchant_id berbeda dari toko yang sudah ada di cart, reset cart dan isi dengan merchant baru.
+     * Hitung harga efektif produk untuk user saat ini (B2C Retail vs B2B Grosir - B2B-002).
+     */
+    public function resolveEffectivePrice(Product $product, ?MerchantInventory $inventory = null): float
+    {
+        if (Auth::check() && Auth::user()->isB2BCustomer()) {
+            return $product->b2b_effective_price;
+        }
+
+        return $inventory ? $inventory->effective_price : (float) $product->base_price;
+    }
+
+    /**
+     * Tambah produk ke keranjang belanja dengan Single-Merchant Enforcement (CAT-005, BR-002).
      */
     public function add(Product $product, int $quantity, Merchant $merchant): array
     {
@@ -48,20 +51,18 @@ class CartService
 
         $cart['merchant_id'] = $merchant->id;
 
-        // Ambil harga efektif dari inventori toko
         $inventory = MerchantInventory::where('merchant_id', $merchant->id)
             ->where('product_id', $product->id)
             ->first();
 
-        $effectivePrice = $inventory ? $inventory->effective_price : (float) $product->base_price;
-        $stock = $inventory ? $inventory->stock : 0;
+        $effectivePrice = $this->resolveEffectivePrice($product, $inventory);
+        $availableStock = $inventory ? $inventory->available_stock : 0;
 
         $currentQty = $cart['items'][$product->id]['quantity'] ?? 0;
         $newQty = $currentQty + $quantity;
 
-        // Batasi kuantitas tidak melebihi stok yang ada
-        if ($newQty > $stock) {
-            $newQty = $stock;
+        if ($newQty > $availableStock) {
+            $newQty = $availableStock;
         }
 
         if ($newQty > 0) {
@@ -72,15 +73,17 @@ class CartService
                 'slug' => $product->slug,
                 'unit_name' => $product->unit_name,
                 'price' => $effectivePrice,
+                'cost_price' => (float) ($product->cost_price ?? 0),
                 'quantity' => $newQty,
                 'subtotal' => $effectivePrice * $newQty,
+                'pricing_tier' => (Auth::check() && Auth::user()->isB2BCustomer()) ? 'b2b' : 'b2c',
             ];
         }
 
         Session::put(self::SESSION_KEY, $cart);
 
         return [
-            'success' => true,
+            'success' => $newQty > 0,
             'merchant_changed' => $merchantChanged,
             'cart' => $cart,
             'item_count' => $this->getItemCount(),
@@ -102,17 +105,20 @@ class CartService
         if ($quantity <= 0) {
             unset($cart['items'][$productId]);
         } else {
-            // Cek batasan stok aktual merchant
             $merchantId = $cart['merchant_id'];
             $inventory = MerchantInventory::where('merchant_id', $merchantId)
                 ->where('product_id', $productId)
                 ->first();
 
-            $maxStock = $inventory ? $inventory->stock : $quantity;
+            $maxStock = $inventory ? $inventory->available_stock : $quantity;
             $appliedQty = min($quantity, $maxStock);
 
-            $cart['items'][$productId]['quantity'] = $appliedQty;
-            $cart['items'][$productId]['subtotal'] = $cart['items'][$productId]['price'] * $appliedQty;
+            if ($appliedQty <= 0) {
+                unset($cart['items'][$productId]);
+            } else {
+                $cart['items'][$productId]['quantity'] = $appliedQty;
+                $cart['items'][$productId]['subtotal'] = $cart['items'][$productId]['price'] * $appliedQty;
+            }
         }
 
         if (empty($cart['items'])) {
@@ -124,8 +130,58 @@ class CartService
     }
 
     /**
-     * Hapus satu item dari keranjang.
+     * Validasi ulang perubahan stok available & harga sebelum checkout/pembayaran (CAT-006, CAT-007, BR-008).
      */
+    public function revalidateCart(): array
+    {
+        $cart = $this->getCart();
+        $merchantId = $cart['merchant_id'] ?? null;
+        $warnings = [];
+        $outOfStockItems = [];
+
+        if (!$merchantId || empty($cart['items'])) {
+            return ['valid' => true, 'warnings' => [], 'out_of_stock' => []];
+        }
+
+        foreach ($cart['items'] as $productId => &$item) {
+            $product = Product::find($productId);
+            $inventory = MerchantInventory::where('merchant_id', $merchantId)
+                ->where('product_id', $productId)
+                ->first();
+
+            if (!$product || !$product->is_active || !$inventory || !$inventory->is_available || $inventory->available_stock <= 0) {
+                $outOfStockItems[] = $item['name'];
+                $warnings[] = "Produk '{$item['name']}' sedang habis dan tidak dapat dibayar.";
+                continue;
+            }
+
+            if ($item['quantity'] > $inventory->available_stock) {
+                $oldQty = $item['quantity'];
+                $item['quantity'] = $inventory->available_stock;
+                $warnings[] = "Stok '{$item['name']}' tersisa {$inventory->available_stock} {$item['unit_name']} (sebelumnya {$oldQty}).";
+            }
+
+            $latestPrice = $this->resolveEffectivePrice($product, $inventory);
+            if (abs((float) $item['price'] - $latestPrice) > 0.01) {
+                $oldPrice = number_format($item['price'], 0, ',', '.');
+                $newPrice = number_format($latestPrice, 0, ',', '.');
+                $item['price'] = $latestPrice;
+                $warnings[] = "Harga '{$item['name']}' telah diperbarui dari Rp {$oldPrice} menjadi Rp {$newPrice}.";
+            }
+
+            $item['subtotal'] = $item['price'] * $item['quantity'];
+        }
+        unset($item);
+
+        Session::put(self::SESSION_KEY, $cart);
+
+        return [
+            'valid' => empty($outOfStockItems),
+            'warnings' => $warnings,
+            'out_of_stock' => $outOfStockItems,
+        ];
+    }
+
     public function removeItem(int $productId): bool
     {
         $cart = $this->getCart();
@@ -144,25 +200,16 @@ class CartService
         return false;
     }
 
-    /**
-     * Kosongkan seluruh keranjang belanja.
-     */
     public function clear(): void
     {
         Session::forget(self::SESSION_KEY);
     }
 
-    /**
-     * Ambil daftar item belanja.
-     */
     public function getItems(): array
     {
         return $this->getCart()['items'] ?? [];
     }
 
-    /**
-     * Hitung total nilai belanja produk (subtotal).
-     */
     public function getSubtotal(): float
     {
         $total = 0;
@@ -172,9 +219,6 @@ class CartService
         return (float) $total;
     }
 
-    /**
-     * Ambil jumlah total kuantitas barang di keranjang.
-     */
     public function getItemCount(): int
     {
         $count = 0;
@@ -184,9 +228,6 @@ class CartService
         return $count;
     }
 
-    /**
-     * Ambil merchant yang sedang melayani keranjang ini.
-     */
     public function getMerchant(): ?Merchant
     {
         $merchantId = $this->getCart()['merchant_id'] ?? null;
@@ -197,14 +238,27 @@ class CartService
     }
 
     /**
-     * Periksa apakah subtotal belanja memenuhi minimal order merchant.
+     * Ambil batas minimum order yang berlaku (B2B Rp1.000.000 vs B2C Retail - B2B-003, BR-004).
+     */
+    public function getRequiredMinimumOrder(?Merchant $merchant = null): float
+    {
+        if (Auth::check() && Auth::user()->isB2BCustomer()) {
+            return (float) config('myethek.b2b_min_order_amount', 1000000);
+        }
+
+        if (config('myethek.pilot_mode', true)) {
+            return 15000.0;
+        }
+
+        $targetMerchant = $merchant ?? $this->getMerchant();
+        return $targetMerchant ? (float) $targetMerchant->min_order_amount : 0.0;
+    }
+
+    /**
+     * Periksa apakah subtotal nilai barang (sebelum ongkir & diskon) memenuhi minimal order (BR-004).
      */
     public function meetsMinimumOrder(?Merchant $merchant = null): bool
     {
-        $targetMerchant = $merchant ?? $this->getMerchant();
-        if (!$targetMerchant) {
-            return true;
-        }
-        return $this->getSubtotal() >= (float) $targetMerchant->min_order_amount;
+        return $this->getSubtotal() >= $this->getRequiredMinimumOrder($merchant);
     }
 }

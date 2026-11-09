@@ -213,6 +213,18 @@
     @endphp
 
     <!-- Top Header -->
+    @if(app()->environment('local', 'testing'))
+        <div class="px-2 py-1 d-flex align-items-center justify-content-between flex-wrap gap-1" style="background: #0f172a; color: #cbd5e1; font-size: 0.65rem;">
+            <span class="fw-bold text-warning"><i class="bi bi-phone"></i> MODE MOBILE</span>
+            <div class="d-flex align-items-center gap-1 flex-wrap">
+                <a href="{{ route('demo.switch', ['role' => 'customer', 'redirect' => route('storefront.index')]) }}" class="badge bg-success text-white text-decoration-none">User B2C</a>
+                <a href="{{ route('demo.switch', ['role' => 'b2b', 'redirect' => route('storefront.index')]) }}" class="badge bg-info text-dark text-decoration-none">User B2B</a>
+                <a href="{{ route('demo.switch', ['role' => 'driver', 'redirect' => route('driver.index')]) }}" class="badge bg-primary text-white text-decoration-none">Driver</a>
+                <a href="{{ route('demo.switch', ['role' => 'warehouse', 'redirect' => route('warehouse.index')]) }}" class="badge bg-secondary text-white text-decoration-none">Web Gudang</a>
+                <a href="{{ route('demo.switch', ['role' => 'superadmin', 'redirect' => route('superadmin.index')]) }}" class="badge bg-warning text-dark text-decoration-none">Web SuperAdmin</a>
+            </div>
+        </div>
+    @endif
     <div class="border-bottom p-3 bg-white sticky-top shadow-sm" style="z-index: 1020;">
         <div class="title d-flex align-items-center">
             <a href="{{ route('storefront.index') }}" class="text-decoration-none text-dark d-flex align-items-center">
@@ -370,10 +382,10 @@
                 <i class="icofont-building me-2"></i> Ekosistem & Portal Mitra
             </a>
             <ul>
-                <li><a href="{{ route('merchant.index') }}"><i class="icofont-shop me-2"></i> Portal Mitra Warung (B2B)</a></li>
-                <li><a href="{{ route('driver.index') }}"><i class="icofont-delivery-time me-2"></i> Portal Driver Ojol Desa</a></li>
-                <li><a href="{{ route('admin.index') }}"><i class="icofont-chart-bar-graph me-2"></i> Audit Holding Koperasi</a></li>
-                <li><a href="{{ route('admin.products.index') }}"><i class="icofont-box me-2"></i> Master Katalog Produk</a></li>
+                <li><a href="{{ route('warehouse.index') }}"><i class="icofont-box me-2"></i> Web Admin Gudang (WMS)</a></li>
+                <li><a href="{{ route('superadmin.index') }}"><i class="icofont-chart-bar-graph me-2"></i> Web Super Admin & Finance</a></li>
+                <li><a href="{{ route('driver.index') }}"><i class="icofont-delivery-time me-2"></i> Mobile Driver KurirQ</a></li>
+                <li><a href="{{ route('admin.products.index') }}"><i class="icofont-list me-2"></i> Master Katalog Produk</a></li>
             </ul>
         </li>
         <li>

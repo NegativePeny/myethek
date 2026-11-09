@@ -4,16 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Territory;
 use App\Models\User;
+use App\Models\UserAddress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    /**
-     * Tampilkan formulir login (Mobile-first Grofar)
-     */
     public function showLogin()
     {
         if (Auth::check()) {
@@ -23,9 +20,6 @@ class AuthController extends Controller
         return view('auth.login');
     }
 
-    /**
-     * Proses autentikasi user (mendukung Nomor HP atau Email)
-     */
     public function login(Request $request)
     {
         $validated = $request->validate([
@@ -60,7 +54,6 @@ class AuthController extends Controller
                 ]);
             }
 
-            // Sinkronkan desa aktif dengan desa domisili user jika ada
             if ($user->territory_id) {
                 session(['active_village_id' => $user->territory_id]);
             }
@@ -73,9 +66,6 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Tampilkan formulir pendaftaran customer/warga
-     */
     public function showRegister()
     {
         if (Auth::check()) {
@@ -92,9 +82,6 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * Proses registrasi akun customer/warga
-     */
     public function register(Request $request)
     {
         $validated = $request->validate([
@@ -117,6 +104,7 @@ class AuthController extends Controller
         ]);
 
         $email = $validated['email'] ?? ('warga_' . preg_replace('/\D/', '', $validated['phone']) . '@myethek.id');
+        $territory = Territory::find($validated['territory_id']);
 
         $user = User::create([
             'name' => $validated['name'],
@@ -124,9 +112,24 @@ class AuthController extends Controller
             'email' => $email,
             'password' => Hash::make($validated['password']),
             'role' => 'customer',
+            'customer_type' => 'b2c',
             'territory_id' => $validated['territory_id'],
             'address' => $validated['address'],
+            'latitude' => $territory?->latitude,
+            'longitude' => $territory?->longitude,
             'is_active' => true,
+        ]);
+
+        UserAddress::create([
+            'user_id' => $user->id,
+            'label' => 'Rumah Utama',
+            'recipient_name' => $user->name,
+            'recipient_phone' => $user->phone,
+            'territory_id' => $user->territory_id,
+            'full_address' => $user->address,
+            'latitude' => $territory?->latitude,
+            'longitude' => $territory?->longitude,
+            'is_default' => true,
         ]);
 
         Auth::login($user);
@@ -139,9 +142,6 @@ class AuthController extends Controller
         );
     }
 
-    /**
-     * Proses logout user
-     */
     public function logout(Request $request)
     {
         Auth::logout();
@@ -152,11 +152,68 @@ class AuthController extends Controller
     }
 
     /**
-     * Redirect cerdas berdasarkan peran akun
+     * Quick Role Switcher untuk Demo UAT (Hanya aktif di environment local/testing)
      */
+    public function quickDemoSwitch(Request $request)
+    {
+        if (!app()->environment(['local', 'testing'])) {
+            abort(403);
+        }
+
+        $email = $request->input('email');
+        if (!$email && $request->filled('role')) {
+            $roleMap = [
+                'superadmin' => 'superadmin@myethek.id',
+                'finance' => 'finance@myethek.id',
+                'warehouse' => 'gudang@myethek.id',
+                'admin' => 'admin@myethek.id',
+                'driver' => 'driver.gedog@myethek.id',
+                'b2b' => 'warung.b2b@myethek.id',
+                'customer' => 'customer.gedog@myethek.id',
+            ];
+            $email = $roleMap[$request->input('role')] ?? 'customer.gedog@myethek.id';
+        }
+
+        $user = User::where('email', $email)->first() ?? User::firstOrFail();
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        if ($user->territory_id) {
+            session(['active_village_id' => $user->territory_id]);
+        }
+
+        if ($request->filled('redirect')) {
+            return redirect($request->input('redirect'));
+        }
+
+        return $this->redirectBasedOnRole($user);
+    }
+
     protected function redirectBasedOnRole(User $user)
     {
-        if ($user->isMerchant()) {
+        if (in_array($user->role, ['superadmin', 'finance'])) {
+            return redirect()->intended(route('finance.index'))->with(
+                'success',
+                "Selamat datang di Portal Super Admin & Keuangan, {$user->name}!"
+            );
+        }
+
+        if ($user->role === 'warehouse') {
+            return redirect()->intended(route('warehouse.index'))->with(
+                'success',
+                "Selamat bertugas di Portal Admin Gudang, {$user->name}!"
+            );
+        }
+
+        if ($user->role === 'admin') {
+            return redirect()->intended(route('admin.index'))->with(
+                'success',
+                "Selamat datang di Portal Admin Koperasi, {$user->name}!"
+            );
+        }
+
+        if (in_array($user->role, ['sub_agent', 'agent', 'distributor', 'center'])) {
             if ($user->merchant) {
                 session(['merchant_portal_id' => $user->merchant->id]);
             }
@@ -167,16 +224,10 @@ class AuthController extends Controller
         }
 
         if ($user->isDriver()) {
+            session(['driver_portal_id' => $user->id]);
             return redirect()->intended(route('driver.index'))->with(
                 'success',
-                "Selamat bertugas di Portal Driver, {$user->name}!"
-            );
-        }
-
-        if ($user->isAdmin()) {
-            return redirect()->intended(route('admin.index'))->with(
-                'success',
-                "Selamat datang di Audit Holding Koperasi, {$user->name}!"
+                "Selamat bertugas di Aplikasi Driver KurirQ Mak Ethek, {$user->name}!"
             );
         }
 

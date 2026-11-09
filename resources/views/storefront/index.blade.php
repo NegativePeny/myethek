@@ -116,7 +116,11 @@
                 <div class="d-flex justify-content-between pt-2 border-top text-secondary" style="font-size: 0.74rem;">
                     <div>
                         <span class="text-muted">Min. Order:</span> 
-                        <strong>Rp {{ number_format($merchant->min_order_amount, 0, ',', '.') }}</strong>
+                        @if(auth()->check() && auth()->user()->isB2bCustomer())
+                            <strong class="text-primary">Rp {{ number_format(config('myethek.b2b_min_order_amount', 1000000), 0, ',', '.') }} (B2B)</strong>
+                        @else
+                            <strong>Rp {{ number_format($merchant->min_order_amount, 0, ',', '.') }}</strong>
+                        @endif
                     </div>
                     <div>
                         <span class="text-muted">Radius:</span> 
@@ -209,8 +213,13 @@
                     @foreach($products as $product)
                         @php
                             $inv = $inventories[$product->id] ?? null;
-                            $stock = $inv ? $inv->stock_quantity : 0;
-                            $price = ($inv && $inv->retail_price > 0) ? $inv->retail_price : $product->base_price;
+                            $stock = $inv ? $inv->availableStock() : 0;
+                            $isB2bUser = auth()->check() && auth()->user()->isB2bCustomer();
+                            if ($isB2bUser) {
+                                $price = $product->getEffectiveB2bPrice();
+                            } else {
+                                $price = ($inv && $inv->retail_price > 0) ? $inv->retail_price : $product->base_price;
+                            }
                             $imgIndex = ($product->id % 12) + 1;
                             $displayImg = $product->image ? asset($product->image) : "/grofar/img/listing/v{$imgIndex}.jpg";
                         @endphp

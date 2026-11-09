@@ -13,23 +13,14 @@ return new class extends Migration
             $table->string('order_number')->unique();
             $table->foreignId('customer_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('merchant_id')->constrained('merchants')->cascadeOnDelete();
-            $table->enum('order_type', ['retail', 'procurement'])->default('retail');
-            $table->enum('status', [
-                'pending',
-                'paid',
-                'processing',
-                'ready_to_ship',
-                'on_delivery',
-                'delivered',
-                'completed',
-                'cancelled',
-            ])->default('pending');
+            $table->string('order_type', 30)->default('retail');
+            $table->string('status', 40)->default('pending');
             $table->decimal('subtotal', 12, 2)->default(0);
             $table->decimal('shipping_fee', 12, 2)->default(0);
             $table->decimal('platform_fee', 12, 2)->default(0);
             $table->decimal('total_amount', 12, 2)->default(0);
-            $table->string('payment_method')->nullable(); // qris, va_bri, va_bni, va_mandiri, cod
-            $table->enum('payment_status', ['unpaid', 'paid', 'expired', 'refunded'])->default('unpaid');
+            $table->string('payment_method')->nullable(); // qris, shopeepay, va_bri, va_bni, va_mandiri, cod
+            $table->string('payment_status', 30)->default('unpaid');
             $table->timestamp('paid_at')->nullable();
             $table->text('notes')->nullable();
             $table->text('shipping_address')->nullable();
@@ -56,19 +47,13 @@ return new class extends Migration
         Schema::create('deliveries', function (Blueprint $table) {
             $table->id();
             $table->foreignId('order_id')->unique()->constrained('orders')->cascadeOnDelete();
-            $table->enum('delivery_type', ['ojol', 'merchant_courier', 'self_pickup'])->default('ojol');
+            $table->string('delivery_type', 30)->default('ojol');
             $table->decimal('distance_km', 6, 2)->default(0);
             $table->decimal('fee', 12, 2)->default(0);
             $table->foreignId('driver_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('pod_image_path')->nullable();
             $table->string('completion_otp', 6)->nullable();
-            $table->enum('status', [
-                'pending',
-                'assigned',
-                'picked_up',
-                'delivered',
-                'cancelled'
-            ])->default('pending');
+            $table->string('status', 30)->default('pending');
             $table->timestamp('assigned_at')->nullable();
             $table->timestamp('picked_up_at')->nullable();
             $table->timestamp('delivered_at')->nullable();

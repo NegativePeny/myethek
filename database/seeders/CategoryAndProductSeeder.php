@@ -6,7 +6,6 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\TierPrice;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class CategoryAndProductSeeder extends Seeder
 {
@@ -31,8 +30,10 @@ class CategoryAndProductSeeder extends Seeder
                 'name' => 'Beras Lahap Premium 5kg',
                 'slug' => 'beras-lahap-premium-5kg',
                 'unit_name' => 'sak (5 kg)',
+                'cost_price' => 62000,
                 'base_price' => 74000,
-                'description' => 'Beras pulen kualitas unggulan langsung dari lumbung petani binaan Koperasi Jatim.',
+                'b2b_price' => 68500,
+                'description' => 'Beras pulen kualitas unggulan langsung dari lumbung petani binaan Koperasi Kota Blitar.',
                 'image' => '/uploads/products/beras_lahap_5kg.jpg',
                 'tiers' => [
                     ['buyer_tier' => 'sub_agent', 'wholesale_price' => 68500, 'moq' => 5],
@@ -46,7 +47,9 @@ class CategoryAndProductSeeder extends Seeder
                 'name' => 'Minyakita Bantal 1 Liter',
                 'slug' => 'minyakita-bantal-1-liter',
                 'unit_name' => '1 liter',
+                'cost_price' => 13000,
                 'base_price' => 15700,
+                'b2b_price' => 14200,
                 'description' => 'Minyak goreng subsidi kemasan hemat untuk kebutuhan memasak harian keluarga.',
                 'image' => '/uploads/products/minyakita_bantal_1l.jpg',
                 'tiers' => [
@@ -61,7 +64,9 @@ class CategoryAndProductSeeder extends Seeder
                 'name' => 'Gula Pasir Kristal Putih 1kg',
                 'slug' => 'gula-pasir-kristal-putih-1kg',
                 'unit_name' => '1 kg',
+                'cost_price' => 14400,
                 'base_price' => 17500,
+                'b2b_price' => 15800,
                 'description' => 'Gula tebu murni manis alami produksi pabrik gula Jawa Timur.',
                 'image' => '/uploads/products/gula_pasir_1kg.jpg',
                 'tiers' => [
@@ -76,7 +81,9 @@ class CategoryAndProductSeeder extends Seeder
                 'name' => 'Telur Ayam Ras Segar Blitar',
                 'slug' => 'telur-ayam-ras-segar-blitar',
                 'unit_name' => '1 kg',
+                'cost_price' => 23000,
                 'base_price' => 27500,
+                'b2b_price' => 25000,
                 'description' => 'Telur segar pilihan langsung dari peternak ayam petelur lokal Blitar.',
                 'image' => '/uploads/products/telur_ayam_blitar.jpg',
                 'tiers' => [
@@ -91,7 +98,9 @@ class CategoryAndProductSeeder extends Seeder
                 'name' => 'Bawang Merah Lokal Super',
                 'slug' => 'bawang-merah-lokal-super',
                 'unit_name' => '500 gram',
+                'cost_price' => 14000,
                 'base_price' => 19000,
+                'b2b_price' => 17000,
                 'description' => 'Bawang merah segar kering, aroma tajam pas untuk bumbu tumis dan goreng.',
                 'image' => '/uploads/products/bawang_merah_lokal.jpg',
                 'tiers' => [
@@ -106,7 +115,9 @@ class CategoryAndProductSeeder extends Seeder
                 'name' => 'Cabai Rawit Merah Segar',
                 'slug' => 'cabai-rawit-merah-segar',
                 'unit_name' => '250 gram',
+                'cost_price' => 9000,
                 'base_price' => 12500,
+                'b2b_price' => 11000,
                 'description' => 'Cabai rawit segar pedas mantap dipetik langsung dari kebun rakyat.',
                 'image' => '/uploads/products/cabai_rawit_merah.jpg',
                 'tiers' => [
@@ -121,7 +132,9 @@ class CategoryAndProductSeeder extends Seeder
                 'name' => 'Sayur Kangkung Segar',
                 'slug' => 'sayur-kangkung-segar',
                 'unit_name' => 'ikat',
+                'cost_price' => 1700,
                 'base_price' => 3000,
+                'b2b_price' => 2400,
                 'description' => 'Kangkung hidroponik segar bebas pestisida berlebih.',
                 'image' => '/uploads/products/kangkung_segar.jpg',
                 'tiers' => [

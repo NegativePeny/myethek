@@ -18,6 +18,9 @@ return new class extends Migration
                 'center',
                 'driver',
                 'admin',
+                'warehouse',
+                'finance',
+                'superadmin',
             ])->default('customer')->after('password');
             $table->foreignId('territory_id')->nullable()->after('role')->constrained('territories')->nullOnDelete();
             $table->text('address')->nullable()->after('territory_id');

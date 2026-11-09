@@ -8,7 +8,7 @@
             <i class="icofont-rounded-left"></i> Keranjang
         </a>
         <div class="fw-bold small text-dark flex-grow-1">
-            Checkout & Pengiriman
+            Checkout & Pengiriman {{ !empty($isB2b) ? '(Grosir B2B)' : '' }}
         </div>
     </div>
 @endsection
@@ -50,20 +50,21 @@
         <div class="p-3 bg-white border-bottom">
             @php
                 $deliveryService = app(\App\Services\DeliveryService::class);
+                $kurirqFee = $deliveryService->calculateShippingFee('kurirq', $distanceKm);
                 $ojolFee = $deliveryService->calculateShippingFee('ojol', $distanceKm);
                 $warungFee = $deliveryService->calculateShippingFee('merchant_courier', $distanceKm);
             @endphp
 
             <div class="d-flex flex-column gap-2">
-                <!-- Opsi 1: Ojol Lokal -->
-                <label class="p-2 rounded-3 border d-flex align-items-center justify-content-between cursor-pointer {{ $selectedDeliveryType === 'ojol' ? 'border-success bg-light' : '' }}">
+                <!-- Opsi 1: KurirQ / Ojol Lokal -->
+                <label class="p-2 rounded-3 border d-flex align-items-center justify-content-between cursor-pointer {{ in_array($selectedDeliveryType, ['ojol', 'kurirq']) ? 'border-success bg-light' : '' }}">
                     <div class="d-flex align-items-center gap-2">
                         <input type="radio" name="delivery_type" value="ojol" class="form-check-input" 
-                               {{ $selectedDeliveryType === 'ojol' ? 'checked' : '' }}
+                               {{ in_array($selectedDeliveryType, ['ojol', 'kurirq']) ? 'checked' : '' }}
                                onchange="window.location.href = '{{ route('storefront.checkout', ['delivery' => 'ojol']) }}'">
                         <div>
-                            <div class="fw-bold small text-dark"><i class="icofont-motor-bike text-success me-1"></i> Kurir Ojol Lokal Desa</div>
-                            <small class="text-muted d-block" style="font-size: 0.7rem;">Motor mitra lokal warga desa</small>
+                            <div class="fw-bold small text-dark"><i class="icofont-motor-bike text-success me-1"></i> KurirQ / Ojol Lokal Blitar</div>
+                            <small class="text-muted d-block" style="font-size: 0.7rem;">Pengiriman cepat mitra KurirQ Koperasi</small>
                         </div>
                     </div>
                     <span class="fw-bold text-success small">Rp {{ number_format($ojolFee, 0, ',', '.') }}</span>
@@ -76,8 +77,8 @@
                                {{ $selectedDeliveryType === 'merchant_courier' ? 'checked' : '' }}
                                onchange="window.location.href = '{{ route('storefront.checkout', ['delivery' => 'merchant_courier']) }}'">
                         <div>
-                            <div class="fw-bold small text-dark"><i class="icofont-fast-delivery text-primary me-1"></i> Diantar Warung Sendiri</div>
-                            <small class="text-muted d-block" style="font-size: 0.7rem;">Tarif pengantaran internal warung</small>
+                            <div class="fw-bold small text-dark"><i class="icofont-fast-delivery text-primary me-1"></i> Armada Gudang Koperasi</div>
+                            <small class="text-muted d-block" style="font-size: 0.7rem;">Tarif pengantaran internal koperasi</small>
                         </div>
                     </div>
                     <span class="fw-bold text-success small">Rp {{ number_format($warungFee, 0, ',', '.') }}</span>
@@ -90,8 +91,8 @@
                                {{ $selectedDeliveryType === 'self_pickup' ? 'checked' : '' }}
                                onchange="window.location.href = '{{ route('storefront.checkout', ['delivery' => 'self_pickup']) }}'">
                         <div>
-                            <div class="fw-bold small text-dark"><i class="icofont-shop text-warning me-1"></i> Ambil Sendiri di Warung</div>
-                            <small class="text-muted d-block" style="font-size: 0.7rem;">Ambil langsung di lokasi toko mitra</small>
+                            <div class="fw-bold small text-dark"><i class="icofont-shop text-warning me-1"></i> Ambil Sendiri di Toko/Gudang</div>
+                            <small class="text-muted d-block" style="font-size: 0.7rem;">Ambil langsung di lokasi koperasi</small>
                         </div>
                     </div>
                     <span class="badge bg-success-subtle text-success border border-success">Gratis</span>
@@ -99,41 +100,72 @@
             </div>
         </div>
 
-        <!-- Alamat & Data Penerima -->
-        <div class="address p-3 bg-white border-bottom mt-2">
+        <!-- Alamat & Data Penerima (Multi-Alamat & Beli untuk Orang Tua/Keluarga CUS-003/CUS-005) -->
+        <div class="address p-3 bg-white border-bottom mt-2 d-flex justify-content-between align-items-center">
             <h6 class="m-0 text-dark fw-bold"><i class="icofont-ui-user text-success me-1"></i> Data Penerima & Alamat</h6>
+            @auth
+                <a href="{{ route('user.profile') }}" class="small text-success text-decoration-none fw-semibold" style="font-size: 0.72rem;">
+                    + Kelola Alamat
+                </a>
+            @endauth
         </div>
         
         <div class="p-3 bg-white border-bottom">
+            @if(isset($savedAddresses) && $savedAddresses->isNotEmpty())
+                <div class="mb-3 p-2 rounded border bg-light">
+                    <label class="form-label small fw-bold text-dark mb-1" style="font-size: 0.72rem;">
+                        <i class="icofont-address-book text-primary me-1"></i> Pilih dari Daftar Alamat Tersimpan (Bisa Kirim ke Orang Tua/Keluarga):
+                    </label>
+                    <select name="address_id" id="savedAddressSelect" class="form-select form-select-sm" onchange="applySavedAddress(this)">
+                        <option value="">-- Isi Manual / Alamat Baru --</option>
+                        @foreach($savedAddresses as $addr)
+                            <option value="{{ $addr->id }}"
+                                    data-recipient="{{ $addr->recipient_name }}"
+                                    data-phone="{{ $addr->recipient_phone }}"
+                                    data-address="{{ $addr->full_address }}"
+                                    data-notes="{{ $addr->notes }}"
+                                    {{ $addr->is_default ? 'selected' : '' }}>
+                                [{{ $addr->label }}] {{ $addr->recipient_name }} ({{ $addr->recipient_phone }}) — {{ \Illuminate\Support\Str::limit($addr->full_address, 40) }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
+
+            @php
+                $defaultAddr = isset($savedAddresses) ? ($savedAddresses->firstWhere('is_default', true) ?? $savedAddresses->first()) : null;
+            @endphp
+
             <div class="mb-2">
-                <label class="form-label small fw-semibold text-secondary mb-1">Nama Pemesan / Penerima:</label>
-                <input type="text" name="recipient_name" class="form-control form-control-sm" 
-                       placeholder="Contoh: Ibu Siti Khadijah" value="{{ old('recipient_name', $customer?->name) }}" required>
+                <label class="form-label small fw-semibold text-secondary mb-1">Nama Penerima (Bisa Orang Tua / Kerabat):</label>
+                <input type="text" name="recipient_name" id="checkoutRecipientName" class="form-control form-control-sm" 
+                       placeholder="Contoh: Ibu Siti Khadijah" value="{{ old('recipient_name', $defaultAddr?->recipient_name ?? $customer?->name) }}" required>
             </div>
             
             <div class="mb-2">
-                <label class="form-label small fw-semibold text-secondary mb-1">Nomor WhatsApp Aktif:</label>
-                <input type="text" name="phone" class="form-control form-control-sm" 
-                       placeholder="Contoh: 081234567890" value="{{ old('phone', $customer?->phone) }}" required>
-                <small class="text-muted" style="font-size: 0.68rem;">Untuk konfirmasi pesanan dan serah-terima kurir.</small>
+                <label class="form-label small fw-semibold text-secondary mb-1">Nomor WhatsApp Penerima Aktif:</label>
+                <input type="text" name="phone" id="checkoutRecipientPhone" class="form-control form-control-sm" 
+                       placeholder="Contoh: 081234567890" value="{{ old('phone', $defaultAddr?->recipient_phone ?? $customer?->phone) }}" required>
+                <small class="text-muted" style="font-size: 0.68rem;">Untuk konfirmasi pesanan dan serah-terima OTP KurirQ.</small>
             </div>
 
             <div class="mb-2">
                 <label class="form-label small fw-semibold text-secondary mb-1">Alamat Lengkap Pengantaran:</label>
-                <textarea name="shipping_address" class="form-control form-control-sm" rows="2" 
-                          placeholder="Nama jalan, RT/RW, nomor rumah, patokan..." required>{{ old('shipping_address', $customer?->address) }}</textarea>
+                <textarea name="shipping_address" id="checkoutShippingAddress" class="form-control form-control-sm" rows="2" 
+                          placeholder="Nama jalan, RT/RW, nomor rumah, patokan..." required>{{ old('shipping_address', $defaultAddr?->full_address ?? $customer?->address) }}</textarea>
             </div>
 
             <div class="mb-0">
-                <label class="form-label small fw-semibold text-secondary mb-1">Catatan Tambahan (Opsional):</label>
-                <input type="text" name="notes" class="form-control form-control-sm" 
+                <label class="form-label small fw-semibold text-secondary mb-1">Catatan Patokan Rumah (Opsional):</label>
+                <input type="text" name="notes" id="checkoutNotes" class="form-control form-control-sm" 
+                       value="{{ old('notes', $defaultAddr?->notes) }}"
                        placeholder="Contoh: Rumah pagar hijau / titip tetangga jika keluar">
             </div>
         </div>
 
-        <!-- Metode Pembayaran -->
+        <!-- Metode Pembayaran Digital DOKU (CUS-006) -->
         <div class="address p-3 bg-white border-bottom mt-2">
-            <h6 class="m-0 text-dark fw-bold"><i class="icofont-credit-card text-success me-1"></i> Metode Pembayaran</h6>
+            <h6 class="m-0 text-dark fw-bold"><i class="icofont-credit-card text-success me-1"></i> Metode Pembayaran (DOKU Payment Gateway)</h6>
         </div>
 
         <div class="p-3 bg-white border-bottom">
@@ -142,8 +174,8 @@
                     <div class="d-flex align-items-center gap-2">
                         <input type="radio" name="payment_method" value="qris" class="form-check-input" checked>
                         <div>
-                            <div class="fw-bold small text-dark">QRIS Koperasi Jawa Timur</div>
-                            <small class="text-muted d-block" style="font-size: 0.7rem;">BCA, BRI, Mandiri, BNI, GoPay, OVO, ShopeePay</small>
+                            <div class="fw-bold small text-dark">QRIS DOKU Koperasi</div>
+                            <small class="text-muted d-block" style="font-size: 0.7rem;">BCA, BRI, Mandiri, BNI, GoPay, OVO, DANA</small>
                         </div>
                     </div>
                     <i class="icofont-qr-code text-dark fs-5"></i>
@@ -153,11 +185,22 @@
                     <div class="d-flex align-items-center gap-2">
                         <input type="radio" name="payment_method" value="va_bri" class="form-check-input">
                         <div>
-                            <div class="fw-bold small text-dark">BRI Virtual Account (BRIVA)</div>
-                            <small class="text-muted d-block" style="font-size: 0.7rem;">Verifikasi otomatis 24 jam</small>
+                            <div class="fw-bold small text-dark">Virtual Account Bank (BRI / Mandiri / BCA)</div>
+                            <small class="text-muted d-block" style="font-size: 0.7rem;">Verifikasi otomatis webhook DOKU 24 jam</small>
                         </div>
                     </div>
-                    <span class="badge bg-primary text-white" style="font-size: 0.65rem;">BRI</span>
+                    <span class="badge bg-primary text-white" style="font-size: 0.65rem;">VA BANK</span>
+                </label>
+
+                <label class="p-2 rounded-3 border d-flex align-items-center justify-content-between cursor-pointer">
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="radio" name="payment_method" value="shopeepay" class="form-check-input">
+                        <div>
+                            <div class="fw-bold small text-dark">E-Wallet (ShopeePay / OVO / DANA)</div>
+                            <small class="text-muted d-block" style="font-size: 0.7rem;">Pembayaran instan via aplikasi dompet digital</small>
+                        </div>
+                    </div>
+                    <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">E-WALLET</span>
                 </label>
 
                 <label class="p-2 rounded-3 border d-flex align-items-center justify-content-between cursor-pointer">
@@ -208,4 +251,17 @@
         </div>
     </form>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+    function applySavedAddress(selectEl) {
+        const opt = selectEl.options[selectEl.selectedIndex];
+        if (!opt || !opt.value) return;
+        document.getElementById('checkoutRecipientName').value = opt.getAttribute('data-recipient') || '';
+        document.getElementById('checkoutRecipientPhone').value = opt.getAttribute('data-phone') || '';
+        document.getElementById('checkoutShippingAddress').value = opt.getAttribute('data-address') || '';
+        document.getElementById('checkoutNotes').value = opt.getAttribute('data-notes') || '';
+    }
+</script>
 @endsection

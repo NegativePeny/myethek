@@ -19,6 +19,9 @@ class User extends Authenticatable
         'phone',
         'password',
         'role',
+        'customer_type',
+        'b2b_verified_at',
+        'b2b_store_name',
         'territory_id',
         'address',
         'latitude',
@@ -35,6 +38,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'b2b_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
             'latitude' => 'float',
@@ -45,6 +49,11 @@ class User extends Authenticatable
     public function territory(): BelongsTo
     {
         return $this->belongsTo(Territory::class);
+    }
+
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(UserAddress::class);
     }
 
     public function merchant(): HasOne
@@ -72,14 +81,34 @@ class User extends Authenticatable
         return $this->role === 'customer';
     }
 
+    public function isB2BCustomer(): bool
+    {
+        return $this->customer_type === 'b2b' && $this->b2b_verified_at !== null;
+    }
+
     public function isMerchant(): bool
     {
-        return in_array($this->role, ['sub_agent', 'agent', 'distributor', 'center']);
+        return in_array($this->role, ['sub_agent', 'agent', 'distributor', 'center', 'warehouse', 'admin']);
     }
 
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return in_array($this->role, ['admin', 'superadmin']);
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'superadmin';
+    }
+
+    public function isFinance(): bool
+    {
+        return in_array($this->role, ['finance', 'superadmin']);
+    }
+
+    public function isWarehouse(): bool
+    {
+        return in_array($this->role, ['warehouse', 'admin', 'superadmin']);
     }
 
     public function isDriver(): bool

@@ -4,20 +4,36 @@ namespace App\Services;
 
 use App\Models\Merchant;
 use App\Models\Territory;
-use Illuminate\Support\Collection;
 
 class StoreLocatorService
 {
     /**
-     * Resolusi toko utama untuk customer dengan logika Cascading Fallback:
-     * Desa (Sub-Agen) -> Kecamatan (Agen) -> Kabupaten (Distributor).
-     *
-     * @param Territory $customerTerritory Wilayah aktif customer (idealnya level 'village')
-     * @param array $requiredItems Format: [['product_id' => int, 'quantity' => int]]
-     * @return array Metadata hasil pencarian toko dan tier yang melayani
+     * Resolusi toko utama untuk customer.
+     * - Jika Pilot Mode aktif (PRD & SOT v1.0: BR-001, BR-011), selalu arahkan ke
+     *   1 Koperasi Utama Kota Blitar tanpa auto-cascading fallback ke toko lain.
+     * - Jika Pilot Mode nonaktif (Roadmap P2), jalankan Cascading Fallback 4-Tier:
+     *   Desa (Sub-Agen) -> Kecamatan (Agen) -> Kabupaten (Distributor).
      */
     public function resolveMerchantForCustomer(?Territory $customerTerritory, array $requiredItems = []): array
     {
+        if (config('myethek.pilot_mode', true)) {
+            $pilotSlug = config('myethek.pilot_merchant_slug', 'gudang-pusat-koperasi-kota-blitar');
+            $pilotMerchant = Merchant::with(['inventories', 'territory'])
+                ->where('slug', $pilotSlug)
+                ->first() ?? Merchant::with(['inventories', 'territory'])->first();
+
+            $hierarchy = $customerTerritory ? $this->resolveHierarchyTree($customerTerritory) : [];
+
+            return [
+                'merchant' => $pilotMerchant,
+                'served_by_tier' => 'pilot_cooperative',
+                'fallback_applied' => false,
+                'fallback_level' => null,
+                'reason' => 'Pilot Kota Blitar: Satu Koperasi • Satu Merchant Utama • Satu Gudang/Toko',
+                'hierarchy' => $hierarchy,
+            ];
+        }
+
         if (!$customerTerritory) {
             return [
                 'merchant' => null,
@@ -94,7 +110,7 @@ class StoreLocatorService
     }
 
     /**
-     * Cari mitra aktif dan evaluasi 5 syarat ketersediaan pada teritori dan tier tertentu.
+     * Cari mitra aktif dan evaluasi syarat ketersediaan pada teritori dan tier tertentu.
      */
     public function findEligibleMerchantInTerritory(int $territoryId, string $tier, array $requiredItems = []): ?Merchant
     {
@@ -116,7 +132,7 @@ class StoreLocatorService
     }
 
     /**
-     * Periksa ketersediaan stok merchant terhadap daftar item keranjang.
+     * Periksa ketersediaan stok available merchant terhadap daftar item keranjang (BR-005, WH-007).
      */
     protected function checkInventoryAvailability(Merchant $merchant, array $requiredItems): bool
     {
@@ -135,7 +151,7 @@ class StoreLocatorService
             }
 
             $inventory = $inventories[$productId];
-            if (!$inventory->is_available || $inventory->stock < $neededQty) {
+            if (!$inventory->is_available || $inventory->available_stock < $neededQty) {
                 return false;
             }
         }

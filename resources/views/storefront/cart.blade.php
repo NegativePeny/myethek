@@ -120,15 +120,16 @@
                 <!-- Minimum Order Warning -->
                 @if($merchant && !$meetsMinimum)
                     @php
-                        $shortage = $merchant->min_order_amount - $subtotal;
+                        $effectiveMinOrder = $minOrderRequired ?? $merchant->min_order_amount;
+                        $shortage = $effectiveMinOrder - $subtotal;
                     @endphp
                     <div class="alert alert-warning py-2 px-3 mx-3 mt-3 small d-flex align-items-center gap-2">
                         <i class="icofont-warning-alt text-warning fs-5"></i>
                         <div>
-                            <div class="fw-bold">Minimal Belanja Belum Tercapai</div>
+                            <div class="fw-bold">Minimal Belanja {{ !empty($isB2b) ? 'Grosir B2B ' : '' }}Belum Tercapai</div>
                             <div style="font-size: 0.75rem;">
-                                Toko mitra ini menetapkan minimal order 
-                                <strong>Rp {{ number_format($merchant->min_order_amount, 0, ',', '.') }}</strong>. 
+                                Minimal order {{ !empty($isB2b) ? 'akun B2B Grosir' : 'toko mitra ini' }} adalah 
+                                <strong>Rp {{ number_format($effectiveMinOrder, 0, ',', '.') }}</strong>. 
                                 Tambah <strong>Rp {{ number_format($shortage, 0, ',', '.') }}</strong> lagi untuk dapat checkout.
                             </div>
                         </div>

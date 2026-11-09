@@ -2,33 +2,35 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MerchantInventory;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Territory;
+use App\Models\UserAddress;
 use App\Services\CartService;
+use App\Services\DeliveryService;
+use App\Services\InventoryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class UserPortalController extends Controller
 {
-    /**
-     * Tampilkan riwayat belanja pengguna (Customer Orders)
-     */
     public function orders(Request $request)
     {
         $status = $request->query('status', 'all');
 
-        $query = Order::with(['items.product', 'merchant', 'delivery.driver'])
+        $query = Order::with(['items.product', 'merchant', 'delivery.driver', 'payment'])
             ->where('customer_id', Auth::id())
             ->where('order_type', 'retail');
 
         if ($status === 'processing') {
-            $query->whereIn('status', ['pending', 'confirmed', 'processing', 'ready_for_pickup', 'shipping']);
+            $query->whereIn('status', ['pending', 'pending_payment', 'paid', 'confirmed', 'accepted', 'processing', 'picking', 'packed', 'ready_to_ship', 'ready_for_pickup', 'assigned', 'picked_up', 'shipping', 'on_delivery']);
         } elseif ($status === 'completed') {
-            $query->where('status', 'delivered');
+            $query->whereIn('status', ['delivered', 'completed']);
         } elseif ($status === 'cancelled') {
-            $query->where('status', 'cancelled');
+            $query->whereIn('status', ['cancelled', 'refunded']);
         }
 
         $orders = $query->latest()->get();
@@ -36,11 +38,11 @@ class UserPortalController extends Controller
         $counts = [
             'all' => Order::where('customer_id', Auth::id())->where('order_type', 'retail')->count(),
             'processing' => Order::where('customer_id', Auth::id())->where('order_type', 'retail')
-                ->whereIn('status', ['pending', 'confirmed', 'processing', 'ready_for_pickup', 'shipping'])->count(),
+                ->whereIn('status', ['pending', 'pending_payment', 'paid', 'confirmed', 'accepted', 'processing', 'picking', 'packed', 'ready_to_ship', 'ready_for_pickup', 'assigned', 'picked_up', 'shipping', 'on_delivery'])->count(),
             'completed' => Order::where('customer_id', Auth::id())->where('order_type', 'retail')
-                ->where('status', 'delivered')->count(),
+                ->whereIn('status', ['delivered', 'completed'])->count(),
             'cancelled' => Order::where('customer_id', Auth::id())->where('order_type', 'retail')
-                ->where('status', 'cancelled')->count(),
+                ->whereIn('status', ['cancelled', 'refunded'])->count(),
         ];
 
         return view('user.orders.index', [
@@ -50,12 +52,9 @@ class UserPortalController extends Controller
         ]);
     }
 
-    /**
-     * Detail Pesanan Pengguna dengan Status Tracking Realtime
-     */
     public function orderDetail(string $orderNumber)
     {
-        $order = Order::with(['items.product', 'merchant.territory', 'delivery.driver', 'escrow'])
+        $order = Order::with(['items.product', 'merchant.territory', 'delivery.driver', 'escrow', 'payment'])
             ->where('order_number', $orderNumber)
             ->where('customer_id', Auth::id())
             ->firstOrFail();
@@ -66,48 +65,53 @@ class UserPortalController extends Controller
     }
 
     /**
-     * Batalkan Pesanan oleh Pembeli (Hanya jika status masih 'pending')
-     * Mengembalikan kuantitas stok produk ke toko mitra secara otomatis
+     * Batalkan Pesanan oleh Pembeli (Hanya jika status masih 'pending' / 'pending_payment')
      */
-    public function cancelOrder(Request $request, string $orderNumber)
+    public function cancelOrder(Request $request, string $orderNumber, InventoryService $inventoryService)
     {
-        $order = Order::with(['items', 'delivery', 'escrow'])
+        $order = Order::with(['items', 'delivery', 'escrow', 'payment'])
             ->where('order_number', $orderNumber)
             ->where('customer_id', Auth::id())
             ->firstOrFail();
 
-        if ($order->status !== 'pending') {
-            return redirect()->back()->with('error', 
-                'Pesanan sudah dikonfirmasi atau sedang diproses oleh toko mitra dan tidak dapat dibatalkan sepihak. Silakan hubungi toko via WhatsApp.'
+        if (!in_array($order->status, ['pending', 'pending_payment'])) {
+            return redirect()->back()->with(
+                'error',
+                'Pesanan sudah dikonfirmasi atau sedang diproses oleh gudang koperasi dan tidak dapat dibatalkan sepihak.'
             );
         }
 
         $reason = $request->input('cancel_reason', 'Dibatalkan oleh pembeli');
+        $isPilot = (bool) config('myethek.pilot_mode', false);
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($order, $reason) {
-            // 1. Ubah status pesanan
+        DB::transaction(function () use ($order, $reason, $isPilot, $inventoryService) {
             $order->update([
                 'status' => 'cancelled',
                 'notes' => $order->notes ? ($order->notes . ' | Alasan batal: ' . $reason) : ('Alasan batal: ' . $reason),
             ]);
 
-            // 2. Kembalikan stok inventori ke toko mitra
-            foreach ($order->items as $item) {
-                $inventory = \App\Models\MerchantInventory::where('merchant_id', $order->merchant_id)
-                    ->where('product_id', $item->product_id)
-                    ->first();
+            if ($isPilot) {
+                $inventoryService->releaseReservedStockForOrder($order, 'Dibatalkan pembeli: ' . $reason, Auth::user());
+            } else {
+                foreach ($order->items as $item) {
+                    $inventory = MerchantInventory::where('merchant_id', $order->merchant_id)
+                        ->where('product_id', $item->product_id)
+                        ->first();
 
-                if ($inventory) {
-                    $inventory->increment('stock', $item->quantity);
+                    if ($inventory) {
+                        $inventory->increment('stock', $item->quantity);
+                    }
                 }
             }
 
-            // 3. Batalkan pengiriman jika ada
             if ($order->delivery) {
                 $order->delivery->update(['status' => 'cancelled']);
             }
 
-            // 4. Batalkan transaksi escrow jika ada (status enum: held, released, refunded)
+            if ($order->payment && $order->payment->status === 'pending') {
+                $order->payment->update(['status' => 'expired']);
+            }
+
             if ($order->escrow) {
                 $order->escrow->update(['status' => 'refunded']);
             }
@@ -115,13 +119,10 @@ class UserPortalController extends Controller
 
         return redirect()->route('user.orders.show', $order->order_number)->with(
             'success',
-            "Pesanan #{$order->order_number} berhasil dibatalkan dan stok produk telah dikembalikan ke toko mitra."
+            "Pesanan #{$order->order_number} berhasil dibatalkan dan stok produk telah dikembalikan."
         );
     }
 
-    /**
-     * Beli Lagi (Re-order): Masukkan seluruh produk pesanan kembali ke keranjang
-     */
     public function reorder(string $orderNumber, CartService $cartService)
     {
         $order = Order::with(['items.product', 'merchant'])
@@ -150,12 +151,9 @@ class UserPortalController extends Controller
         );
     }
 
-    /**
-     * Tampilkan profil akun pengguna (Warga)
-     */
     public function profile()
     {
-        $user = Auth::user()->load('territory.parent');
+        $user = Auth::user()->load(['territory.parent', 'addresses.territory']);
 
         $villages = Territory::where('level', 'village')
             ->with('parent')
@@ -164,9 +162,9 @@ class UserPortalController extends Controller
 
         $stats = [
             'total_orders' => Order::where('customer_id', $user->id)->count(),
-            'completed_orders' => Order::where('customer_id', $user->id)->where('status', 'delivered')->count(),
+            'completed_orders' => Order::where('customer_id', $user->id)->whereIn('status', ['delivered', 'completed'])->count(),
             'processing_orders' => Order::where('customer_id', $user->id)
-                ->whereIn('status', ['pending', 'confirmed', 'processing', 'ready_for_pickup', 'shipping'])
+                ->whereIn('status', ['pending', 'pending_payment', 'paid', 'confirmed', 'accepted', 'processing', 'picking', 'packed', 'ready_for_pickup', 'shipping', 'on_delivery'])
                 ->count(),
         ];
 
@@ -177,9 +175,6 @@ class UserPortalController extends Controller
         ]);
     }
 
-    /**
-     * Perbarui data profil, alamat domisili, atau kata sandi
-     */
     public function updateProfile(Request $request)
     {
         $user = Auth::user();
@@ -221,5 +216,55 @@ class UserPortalController extends Controller
         session(['active_village_id' => $user->territory_id]);
 
         return back()->with('success', 'Data profil dan alamat domisili belanja berhasil diperbarui.');
+    }
+
+    /**
+     * Tambah Alamat Pengiriman Tersimpan / Alamat Keluarga di Blitar (CUS-003, CUS-004, CUS-005)
+     */
+    public function storeAddress(Request $request, DeliveryService $deliveryService)
+    {
+        $user = Auth::user();
+
+        $validated = $request->validate([
+            'label' => 'required|string|max:50',
+            'recipient_name' => 'required|string|max:100',
+            'recipient_phone' => 'required|string|max:25',
+            'territory_id' => 'required|exists:territories,id',
+            'full_address' => 'required|string|max:500',
+            'notes' => 'nullable|string|max:255',
+            'is_default' => 'nullable|boolean',
+        ]);
+
+        $territory = Territory::find($validated['territory_id']);
+        if (!$deliveryService->isWithinBlitarServiceArea($territory)) {
+            return back()->with('error', 'Alamat harus berada di dalam area layanan Kota Blitar.');
+        }
+
+        if ($request->boolean('is_default')) {
+            UserAddress::where('user_id', $user->id)->update(['is_default' => false]);
+        }
+
+        UserAddress::create([
+            'user_id' => $user->id,
+            'label' => $validated['label'],
+            'recipient_name' => $validated['recipient_name'],
+            'recipient_phone' => $validated['recipient_phone'],
+            'territory_id' => $territory->id,
+            'full_address' => $validated['full_address'],
+            'latitude' => $territory->latitude,
+            'longitude' => $territory->longitude,
+            'notes' => $validated['notes'] ?? null,
+            'is_default' => $request->boolean('is_default') || $user->addresses()->count() === 0,
+        ]);
+
+        return back()->with('success', "Alamat '{$validated['label']}' ({$validated['recipient_name']}) berhasil disimpan.");
+    }
+
+    public function deleteAddress(int $id)
+    {
+        $addr = UserAddress::where('user_id', Auth::id())->findOrFail($id);
+        $addr->delete();
+
+        return back()->with('success', 'Alamat tersimpan berhasil dihapus.');
     }
 }
