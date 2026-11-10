@@ -72,6 +72,7 @@ class CartService
                 'name' => $product->name,
                 'slug' => $product->slug,
                 'unit_name' => $product->unit_name,
+                'image' => $product->image,
                 'price' => $effectivePrice,
                 'cost_price' => (float) ($product->cost_price ?? 0),
                 'quantity' => $newQty,
@@ -207,7 +208,18 @@ class CartService
 
     public function getItems(): array
     {
-        return $this->getCart()['items'] ?? [];
+        $items = $this->getCart()['items'] ?? [];
+        
+        // Pastikan key image selalu tersedia untuk backward compatibility session lama
+        foreach ($items as $productId => &$item) {
+            if (!isset($item['image'])) {
+                $p = Product::find($productId);
+                $item['image'] = $p?->image;
+            }
+        }
+        unset($item);
+
+        return $items;
     }
 
     public function getSubtotal(): float

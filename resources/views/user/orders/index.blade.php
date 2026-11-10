@@ -70,12 +70,19 @@
                     @php
                         $statusBadges = [
                             'pending' => ['bg' => 'bg-warning-subtle text-warning-emphasis border-warning', 'label' => 'Menunggu Konfirmasi'],
-                            'confirmed' => ['bg' => 'bg-info-subtle text-info-emphasis border-info', 'label' => 'Dikonfirmasi Toko'],
+                            'paid' => ['bg' => 'bg-info-subtle text-info-emphasis border-info', 'label' => 'Sudah Dibayar'],
+                            'confirmed' => ['bg' => 'bg-info-subtle text-info-emphasis border-info', 'label' => 'Dikonfirmasi'],
                             'processing' => ['bg' => 'bg-primary-subtle text-primary border-primary', 'label' => 'Sedang Disiapkan'],
-                            'ready_for_pickup' => ['bg' => 'bg-indigo-subtle text-indigo border-indigo', 'label' => 'Siap Diantar'],
+                            'picking' => ['bg' => 'bg-primary-subtle text-primary border-primary', 'label' => 'Picking di Gudang'],
+                            'packed' => ['bg' => 'bg-primary-subtle text-primary border-primary', 'label' => 'Selesai Dikemas'],
+                            'ready_for_pickup' => ['bg' => 'bg-info-subtle text-info-emphasis border-info', 'label' => 'Siap Diambil/Diantar'],
+                            'assigned' => ['bg' => 'bg-info text-white border-info', 'label' => 'Diserahkan ke Kurir'],
+                            'on_delivery' => ['bg' => 'bg-primary text-white border-primary', 'label' => 'Kurir Sedang Mengantar'],
                             'shipping' => ['bg' => 'bg-primary text-white border-primary', 'label' => 'Kurir Menuju Lokasi'],
                             'delivered' => ['bg' => 'bg-success-subtle text-success border-success', 'label' => 'Pesanan Selesai'],
+                            'completed' => ['bg' => 'bg-success-subtle text-success border-success', 'label' => 'Pesanan Selesai'],
                             'cancelled' => ['bg' => 'bg-danger-subtle text-danger border-danger', 'label' => 'Dibatalkan'],
+                            'refunded' => ['bg' => 'bg-danger-subtle text-danger border-danger', 'label' => 'Dana Dikembalikan'],
                         ];
                         $badge = $statusBadges[$order->status] ?? ['bg' => 'bg-secondary text-white', 'label' => ucfirst($order->status)];
                     @endphp

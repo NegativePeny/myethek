@@ -86,17 +86,28 @@
         
         <div class="tracking-wrap">
             @php
-                $status = $order->status;
-                $deliveryStatus = $order->delivery->status ?? 'pending';
+                $status = strtolower($order->status ?? 'pending');
+                $packingStatus = strtolower($order->packing_status ?? 'not_started');
+                $deliveryStatus = strtolower($order->delivery->status ?? 'pending');
+                $isSelfPickup = ($order->delivery?->delivery_type === 'self_pickup');
+
                 $step = 1;
-                if (in_array($status, ['paid', 'confirmed', 'processing', 'ready_for_pickup'])) {
-                    $step = 2;
-                }
-                if (in_array($status, ['shipped']) || in_array($deliveryStatus, ['on_delivery', 'picked_up'])) {
-                    $step = 3;
-                }
-                if ($status === 'completed' || $deliveryStatus === 'delivered') {
+                if (in_array($status, ['delivered', 'completed']) || in_array($deliveryStatus, ['delivered'])) {
                     $step = 4;
+                } elseif (
+                    in_array($status, ['on_delivery', 'shipping', 'shipped', 'picked_up']) ||
+                    in_array($deliveryStatus, ['on_delivery', 'picked_up']) ||
+                    ($packingStatus === 'handed_over' && in_array($deliveryStatus, ['assigned', 'accepted'])) ||
+                    in_array($status, ['assigned']) ||
+                    ($isSelfPickup && ($status === 'ready_for_pickup' || $packingStatus === 'packed' || $packingStatus === 'handed_over'))
+                ) {
+                    $step = 3;
+                } elseif (
+                    in_array($status, ['processing', 'picking', 'packed', 'ready_for_pickup', 'confirmed', 'accepted']) ||
+                    in_array($packingStatus, ['picking', 'packed']) ||
+                    ($status === 'paid')
+                ) {
+                    $step = 2;
                 }
             @endphp
 
@@ -182,10 +193,21 @@
     <div class="p-3 bg-white border-bottom">
         <h6 class="fw-bold mb-2 small"><i class="icofont-bill-alt text-primary me-1"></i> Rincian Pembayaran</h6>
         
-        <div class="d-flex flex-column gap-1 mb-2 pb-2 border-bottom">
+        <div class="d-flex flex-column gap-2 mb-2 pb-2 border-bottom">
             @foreach($order->items as $item)
-                <div class="d-flex justify-content-between small">
-                    <span class="text-truncate" style="max-width: 220px;">{{ $item->product_name }} &times; {{ $item->quantity }}</span>
+                @php
+                    $prodImage = $item->product?->image;
+                    $pIndex = ($item->product_id % 12) + 1;
+                    $dispImg = $prodImage ? asset($prodImage) : "/grofar/img/listing/v{$pIndex}.jpg";
+                @endphp
+                <div class="d-flex align-items-center justify-content-between small">
+                    <div class="d-flex align-items-center gap-2">
+                        <img src="{{ $dispImg }}" onerror="this.onerror=null; this.src='/grofar/img/listing/v{{ $pIndex }}.jpg';" class="rounded border bg-white" style="width: 36px; height: 36px; object-fit: contain;" alt="{{ $item->product_name }}">
+                        <div>
+                            <span class="text-truncate fw-semibold text-dark d-block" style="max-width: 180px;">{{ $item->product_name }}</span>
+                            <small class="text-muted">{{ $item->quantity }} {{ $item->unit_name }} &times; Rp {{ number_format($item->price, 0, ',', '.') }}</small>
+                        </div>
+                    </div>
                     <strong class="text-dark">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</strong>
                 </div>
             @endforeach

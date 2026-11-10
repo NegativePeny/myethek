@@ -42,6 +42,37 @@
     <form action="{{ route('storefront.checkout.store') }}" method="POST">
         @csrf
 
+        <!-- Ringkasan Barang Belanjaan (Items Preview) -->
+        <div class="address p-3 bg-white border-bottom mt-2 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 text-dark fw-bold"><i class="icofont-bag text-success me-1"></i> Barang yang Dipesan ({{ count($items) }})</h6>
+            <a href="{{ route('storefront.cart') }}" class="small text-success text-decoration-none fw-semibold" style="font-size: 0.72rem;">
+                Ubah di Keranjang
+            </a>
+        </div>
+        <div class="p-3 bg-white border-bottom">
+            <div class="d-flex flex-column gap-2">
+                @foreach($items as $it)
+                    @php
+                        $itImage = $it['image'] ?? \App\Models\Product::find($it['product_id'])?->image;
+                        $itImgIndex = ($it['product_id'] % 12) + 1;
+                        $itDisplayImg = $itImage ? asset($itImage) : "/grofar/img/listing/v{$itImgIndex}.jpg";
+                    @endphp
+                    <div class="d-flex align-items-center justify-content-between p-2 rounded bg-light border">
+                        <div class="d-flex align-items-center gap-2">
+                            <img src="{{ $itDisplayImg }}" onerror="this.onerror=null; this.src='/grofar/img/listing/v{{ $itImgIndex }}.jpg';" class="rounded border bg-white" style="width: 44px; height: 44px; object-fit: contain;" alt="{{ $it['name'] }}">
+                            <div>
+                                <h6 class="mb-0 fw-semibold text-dark small text-truncate" style="max-width: 190px;">{{ $it['name'] }}</h6>
+                                <small class="text-muted" style="font-size: 0.7rem;">
+                                    {{ $it['quantity'] }} {{ $it['unit_name'] }} &times; Rp {{ number_format($it['price'], 0, ',', '.') }}
+                                </small>
+                            </div>
+                        </div>
+                        <strong class="text-dark small text-nowrap">Rp {{ number_format($it['subtotal'], 0, ',', '.') }}</strong>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+
         <!-- Pilihan Metode Pengiriman -->
         <div class="address p-3 bg-white border-bottom mt-2">
             <h6 class="m-0 text-dark fw-bold"><i class="icofont-delivery-time text-success me-1"></i> Metode Pengiriman</h6>

@@ -21,72 +21,158 @@
 @section('content')
 <div class="osahan-status p-3">
     @php
-        $statusMap = [
-            'pending' => ['step' => 1, 'title' => 'Menunggu Konfirmasi', 'desc' => 'Pesanan baru dikirimkan ke mitra warung koperasi.'],
-            'confirmed' => ['step' => 2, 'title' => 'Dikonfirmasi Toko', 'desc' => 'Toko telah menerima pesanan dan mulai menyiapkan barang.'],
-            'processing' => ['step' => 2, 'title' => 'Sedang Disiapkan', 'desc' => 'Barang sembako sedang dikemas rapi oleh warung.'],
-            'ready_for_pickup' => ['step' => 3, 'title' => 'Siap Diambil Kurir', 'desc' => 'Paket siap di toko, menunggu kurir ojol mengambil.'],
-            'shipping' => ['step' => 3, 'title' => 'Kurir Sedang Mengantar', 'desc' => 'Kurir ojol desa sedang dalam perjalanan ke alamat Anda.'],
-            'delivered' => ['step' => 4, 'title' => 'Pesanan Selesai', 'desc' => 'Barang belanjaan telah berhasil diterima oleh pemesan.'],
-            'cancelled' => ['step' => 0, 'title' => 'Pesanan Dibatalkan', 'desc' => 'Pesanan ini telah dibatalkan.'],
-        ];
+        $status = strtolower($order->status ?? 'pending');
+        $packingStatus = strtolower($order->packing_status ?? 'not_started');
+        $deliveryStatus = strtolower($order->delivery->status ?? 'pending');
+        $isSelfPickup = ($order->delivery?->delivery_type === 'self_pickup');
 
-        $currentStatus = $statusMap[$order->status] ?? ['step' => 1, 'title' => ucfirst($order->status), 'desc' => ''];
-        $currentStep = $currentStatus['step'];
+        if (in_array($status, ['cancelled', 'refunded', 'expired', 'failed'])) {
+            $currentStep = 0;
+            $statusTitle = 'Pesanan Dibatalkan';
+            $statusDesc = $order->notes ? $order->notes : 'Pesanan ini telah dibatalkan atau kedaluwarsa.';
+            $badgeColor = 'danger';
+            $badgeIcon = 'close-circled';
+            $badgeText = 'Batal';
+        } elseif (in_array($status, ['delivered', 'completed']) || in_array($deliveryStatus, ['delivered'])) {
+            $currentStep = 4;
+            $statusTitle = 'Pesanan Selesai';
+            $statusDesc = $isSelfPickup 
+                ? 'Barang pesanan telah berhasil diambil dan diserahkan di lokasi toko/gudang koperasi.' 
+                : 'Barang belanjaan telah berhasil diterima pemesan dengan verifikasi serah-terima OTP.';
+            $badgeColor = 'success';
+            $badgeIcon = 'check-circled';
+            $badgeText = 'Selesai';
+        } elseif (
+            in_array($status, ['on_delivery', 'shipping', 'shipped', 'picked_up']) ||
+            in_array($deliveryStatus, ['on_delivery', 'picked_up']) ||
+            ($packingStatus === 'handed_over' && in_array($deliveryStatus, ['assigned', 'accepted'])) ||
+            in_array($status, ['assigned']) ||
+            ($isSelfPickup && ($status === 'ready_for_pickup' || $packingStatus === 'packed' || $packingStatus === 'handed_over'))
+        ) {
+            $currentStep = 3;
+            $badgeColor = 'primary';
+            $badgeIcon = 'refresh';
+            if ($isSelfPickup) {
+                $statusTitle = 'Siap Diambil di Gudang/Toko';
+                $statusDesc = 'Pesanan sudah selesai dikemas dan siap Anda ambil langsung di lokasi gudang koperasi.';
+                $badgeText = 'Siap Diambil';
+            } elseif (in_array($deliveryStatus, ['on_delivery', 'picked_up']) || in_array($status, ['on_delivery', 'shipping', 'shipped'])) {
+                $statusTitle = 'Kurir Sedang Mengantar';
+                $statusDesc = 'Kurir KurirQ sedang dalam perjalanan mengantarkan paket ke alamat Anda.';
+                $badgeText = 'Sedang Diantar';
+            } else {
+                $statusTitle = 'Paket Diserahkan ke Kurir';
+                $statusDesc = 'Pesanan telah selesai dikemas dan diserahkan ke Driver KurirQ untuk pengantaran.';
+                $badgeText = 'Menunggu Kurir';
+            }
+        } elseif (
+            in_array($status, ['processing', 'picking', 'packed', 'ready_for_pickup', 'confirmed', 'accepted']) ||
+            in_array($packingStatus, ['picking', 'packed']) ||
+            ($status === 'paid')
+        ) {
+            $currentStep = 2;
+            $badgeColor = 'primary';
+            $badgeIcon = 'refresh';
+            $badgeText = 'Sedang Disiapkan';
+            if ($packingStatus === 'packed' || $status === 'ready_for_pickup') {
+                $statusTitle = 'Selesai Dikemas Gudang';
+                $statusDesc = 'Pesanan Anda telah selesai dikemas oleh petugas gudang dan siap serah-terima pengiriman.';
+            } elseif ($packingStatus === 'picking' || $status === 'picking') {
+                $statusTitle = 'Sedang Di-pick di Gudang';
+                $statusDesc = 'Petugas gudang koperasi sedang mengambil barang sesuai daftar belanjaan Anda.';
+            } else {
+                $statusTitle = 'Pesanan Sedang Disiapkan';
+                $statusDesc = 'Toko/Gudang mitra telah menerima pesanan dan sedang menyiapkan barang.';
+            }
+        } else {
+            // Default: pending / baru checkout
+            $currentStep = 1;
+            $badgeColor = 'warning';
+            $badgeIcon = 'clock-time';
+            $badgeText = 'Menunggu';
+            $statusTitle = $order->payment_status === 'paid' ? 'Pesanan Diterima (Lunas)' : 'Menunggu Konfirmasi / Pembayaran';
+            $statusDesc = 'Pesanan Anda telah diterima sistem dan masuk ke antrean gudang koperasi.';
+        }
+
+        // Tentukan persentase garis progress bar
+        $progressPct = match($currentStep) {
+            1 => 0,
+            2 => 33,
+            3 => 66,
+            4 => 100,
+            default => 0,
+        };
     @endphp
 
     <!-- Card Status Tracking -->
     <div class="card border rounded-3 shadow-sm bg-white mb-3">
         <div class="card-body p-3">
             <div class="d-flex align-items-center justify-content-between mb-2">
-                <h6 class="fw-bold text-dark m-0">{{ $currentStatus['title'] }}</h6>
-                @if($order->status === 'delivered')
-                    <span class="badge bg-success-subtle text-success border border-success px-2 py-1" style="font-size: 0.7rem;">
-                        <i class="icofont-check-circled me-1"></i> Selesai
-                    </span>
-                @elseif($order->status === 'cancelled')
-                    <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-1" style="font-size: 0.7rem;">
-                        <i class="icofont-close-circled me-1"></i> Batal
-                    </span>
-                @else
-                    <span class="badge bg-primary-subtle text-primary border border-primary px-2 py-1" style="font-size: 0.7rem;">
-                        <i class="icofont-refresh me-1"></i> Dalam Proses
-                    </span>
-                @endif
+                <h6 class="fw-bold text-dark m-0">{{ $statusTitle }}</h6>
+                <span class="badge bg-{{ $badgeColor }}-subtle text-{{ $badgeColor }} border border-{{ $badgeColor }} px-2 py-1" style="font-size: 0.7rem;">
+                    <i class="icofont-{{ $badgeIcon }} me-1"></i> {{ $badgeText }}
+                </span>
             </div>
-            <p class="text-muted small mb-3">{{ $currentStatus['desc'] }}</p>
+            <p class="text-muted small mb-3">{{ $statusDesc }}</p>
 
             @if($order->status !== 'cancelled')
-                <!-- Stepper Visual -->
+                <!-- Stepper Visual dengan Connecting Line & Centang Jelas -->
                 <div class="position-relative my-3 px-2">
+                    <!-- Background Connecting Line -->
+                    <div class="position-absolute" style="top: 15px; left: 12%; right: 12%; height: 3px; background-color: #e2e8f0; z-index: 1;">
+                        <!-- Active Progress Line -->
+                        <div class="bg-success h-100 transition-all" style="width: {{ $progressPct }}%; transition: width 0.3s ease;"></div>
+                    </div>
+
                     <div class="d-flex justify-content-between position-relative" style="z-index: 2;">
-                        <!-- Step 1 -->
+                        <!-- Step 1: Diterima -->
                         <div class="text-center" style="width: 25%;">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 {{ $currentStep >= 1 ? 'bg-success text-white' : 'bg-light text-muted border' }}" style="width: 28px; height: 28px; font-size: 0.75rem;">
-                                @if($currentStep > 1) <i class="icofont-check"></i> @else 1 @endif
+                            <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 {{ $currentStep >= 1 ? 'bg-success text-white shadow-sm' : 'bg-light text-muted border' }}" 
+                                 style="width: 30px; height: 30px; font-size: 0.85rem; font-weight: 700;">
+                                <i class="icofont-check"></i>
                             </div>
-                            <span class="d-block text-truncate small {{ $currentStep >= 1 ? 'fw-bold text-success' : 'text-muted' }}" style="font-size: 0.65rem;">Diterima</span>
+                            <span class="d-block text-truncate small {{ $currentStep >= 1 ? 'fw-bold text-success' : 'text-muted' }}" style="font-size: 0.68rem;">Diterima</span>
                         </div>
-                        <!-- Step 2 -->
+
+                        <!-- Step 2: Disiapkan -->
                         <div class="text-center" style="width: 25%;">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 {{ $currentStep >= 2 ? 'bg-success text-white' : 'bg-light text-muted border' }}" style="width: 28px; height: 28px; font-size: 0.75rem;">
-                                @if($currentStep > 2) <i class="icofont-check"></i> @else 2 @endif
+                            <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 {{ $currentStep >= 2 ? 'bg-success text-white shadow-sm' : 'bg-light text-muted border' }}" 
+                                 style="width: 30px; height: 30px; font-size: 0.85rem; font-weight: 700;">
+                                @if($currentStep >= 2)
+                                    <i class="icofont-check"></i>
+                                @else
+                                    2
+                                @endif
                             </div>
-                            <span class="d-block text-truncate small {{ $currentStep >= 2 ? 'fw-bold text-success' : 'text-muted' }}" style="font-size: 0.65rem;">Disiapkan</span>
+                            <span class="d-block text-truncate small {{ $currentStep >= 2 ? 'fw-bold text-success' : 'text-muted' }}" style="font-size: 0.68rem;">Disiapkan</span>
                         </div>
-                        <!-- Step 3 -->
+
+                        <!-- Step 3: Diantar / Siap Ambil -->
                         <div class="text-center" style="width: 25%;">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 {{ $currentStep >= 3 ? 'bg-success text-white' : 'bg-light text-muted border' }}" style="width: 28px; height: 28px; font-size: 0.75rem;">
-                                @if($currentStep > 3) <i class="icofont-check"></i> @else 3 @endif
+                            <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 {{ $currentStep >= 3 ? 'bg-success text-white shadow-sm' : 'bg-light text-muted border' }}" 
+                                 style="width: 30px; height: 30px; font-size: 0.85rem; font-weight: 700;">
+                                @if($currentStep >= 3)
+                                    <i class="icofont-check"></i>
+                                @else
+                                    3
+                                @endif
                             </div>
-                            <span class="d-block text-truncate small {{ $currentStep >= 3 ? 'fw-bold text-success' : 'text-muted' }}" style="font-size: 0.65rem;">Diantar</span>
+                            <span class="d-block text-truncate small {{ $currentStep >= 3 ? 'fw-bold text-success' : 'text-muted' }}" style="font-size: 0.68rem;">
+                                {{ $isSelfPickup ? 'Siap Ambil' : 'Diantar' }}
+                            </span>
                         </div>
-                        <!-- Step 4 -->
+
+                        <!-- Step 4: Selesai -->
                         <div class="text-center" style="width: 25%;">
-                            <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 {{ $currentStep >= 4 ? 'bg-success text-white' : 'bg-light text-muted border' }}" style="width: 28px; height: 28px; font-size: 0.75rem;">
-                                @if($currentStep >= 4) <i class="icofont-check"></i> @else 4 @endif
+                            <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-1 {{ $currentStep >= 4 ? 'bg-success text-white shadow-sm' : 'bg-light text-muted border' }}" 
+                                 style="width: 30px; height: 30px; font-size: 0.85rem; font-weight: 700;">
+                                @if($currentStep >= 4)
+                                    <i class="icofont-check"></i>
+                                @else
+                                    4
+                                @endif
                             </div>
-                            <span class="d-block text-truncate small {{ $currentStep >= 4 ? 'fw-bold text-success' : 'text-muted' }}" style="font-size: 0.65rem;">Selesai</span>
+                            <span class="d-block text-truncate small {{ $currentStep >= 4 ? 'fw-bold text-success' : 'text-muted' }}" style="font-size: 0.68rem;">Selesai</span>
                         </div>
                     </div>
                 </div>
@@ -167,12 +253,20 @@
 
             <div class="d-flex flex-column gap-2">
                 @foreach($order->items as $item)
+                    @php
+                        $prodImg = $item->product?->image;
+                        $prodIdx = ($item->product_id % 12) + 1;
+                        $displayImg = $prodImg ? asset($prodImg) : "/grofar/img/listing/v{$prodIdx}.jpg";
+                    @endphp
                     <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
-                        <div>
-                            <span class="fw-semibold text-dark small d-block">{{ $item->product_name }}</span>
-                            <small class="text-muted" style="font-size: 0.72rem;">
-                                {{ $item->quantity }} {{ $item->unit_name }} x Rp {{ number_format($item->price, 0, ',', '.') }}
-                            </small>
+                        <div class="d-flex align-items-center gap-2">
+                            <img src="{{ $displayImg }}" onerror="this.onerror=null; this.src='/grofar/img/listing/v{{ $prodIdx }}.jpg';" class="rounded border bg-white" style="width: 40px; height: 40px; object-fit: contain;" alt="{{ $item->product_name }}">
+                            <div>
+                                <span class="fw-semibold text-dark small d-block">{{ $item->product_name }}</span>
+                                <small class="text-muted" style="font-size: 0.72rem;">
+                                    {{ $item->quantity }} {{ $item->unit_name }} x Rp {{ number_format($item->price, 0, ',', '.') }}
+                                </small>
+                            </div>
                         </div>
                         <span class="fw-bold text-dark small">
                             Rp {{ number_format($item->subtotal, 0, ',', '.') }}
