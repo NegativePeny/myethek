@@ -19,7 +19,7 @@
         $price = $inventory ? $inventory->effective_price : (float) $product->base_price;
         $isAvailable = $inventory ? ($inventory->is_available && $stock > 0) : false;
         $imgIndex = ($product->id % 12) + 1;
-        $displayImg = $product->image ? asset($product->image) : "/grofar/img/listing/v{$imgIndex}.jpg";
+        $displayImg = $product->image ? asset($product->image) : asset("grofar/img/listing/v{$imgIndex}.jpg");
     @endphp
 
     <div class="osahan-product">

@@ -55,11 +55,12 @@
                     @php
                         $itImage = $it['image'] ?? \App\Models\Product::find($it['product_id'])?->image;
                         $itImgIndex = ($it['product_id'] % 12) + 1;
-                        $itDisplayImg = $itImage ? asset($itImage) : "/grofar/img/listing/v{$itImgIndex}.jpg";
+                        $fallbackImg = asset("grofar/img/listing/v{$itImgIndex}.jpg");
+                        $itDisplayImg = $itImage ? asset($itImage) : $fallbackImg;
                     @endphp
                     <div class="d-flex align-items-center justify-content-between p-2 rounded bg-light border">
                         <div class="d-flex align-items-center gap-2">
-                            <img src="{{ $itDisplayImg }}" onerror="this.onerror=null; this.src='/grofar/img/listing/v{{ $itImgIndex }}.jpg';" class="rounded border bg-white" style="width: 44px; height: 44px; object-fit: contain;" alt="{{ $it['name'] }}">
+                            <img src="{{ $itDisplayImg }}" onerror="this.onerror=null; this.src='{{ $fallbackImg }}';" class="rounded border bg-white" style="width: 44px; height: 44px; object-fit: contain;" alt="{{ $it['name'] }}">
                             <div>
                                 <h6 class="mb-0 fw-semibold text-dark small text-truncate" style="max-width: 190px;">{{ $it['name'] }}</h6>
                                 <small class="text-muted" style="font-size: 0.7rem;">

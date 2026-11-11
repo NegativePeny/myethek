@@ -8,6 +8,7 @@ use App\Models\Wallet;
 use App\Services\EscrowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class DriverPortalController extends Controller
@@ -261,5 +262,30 @@ class DriverPortalController extends Controller
         }
 
         return redirect()->back()->with('error', $result['message']);
+    }
+
+    /**
+     * Perbarui / Regenerate OTP Pengiriman jika kedaluwarsa (DRV-007, BR-010)
+     */
+    public function renewOtp(int $deliveryId)
+    {
+        $driver = $this->getActiveDriver();
+        $delivery = Delivery::findOrFail($deliveryId);
+
+        if ($delivery->driver_id !== $driver->id) {
+            return redirect()->back()->with('error', 'Anda tidak ditugaskan pada pesanan ini.');
+        }
+
+        $randomOtp = str_pad((string) random_int(1000, 9999), 4, '0', STR_PAD_LEFT);
+        $otpExpiryMinutes = (int) config('myethek.otp.expiry_minutes', 180);
+
+        $delivery->update([
+            'completion_otp' => $randomOtp,
+            'otp_hash' => Hash::make($randomOtp),
+            'otp_expires_at' => now()->addMinutes($otpExpiryMinutes),
+            'otp_attempts' => 0,
+        ]);
+
+        return redirect()->back()->with('success', "Kode OTP berhasil diperbarui: {$randomOtp} (aktif {$otpExpiryMinutes} menit ke depan).");
     }
 }

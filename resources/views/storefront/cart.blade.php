@@ -66,11 +66,12 @@
                     @php
                         $itemImage = $item['image'] ?? \App\Models\Product::find($item['product_id'])?->image;
                         $imgIndex = ($item['product_id'] % 12) + 1;
-                        $displayImg = $itemImage ? asset($itemImage) : "/grofar/img/listing/v{$imgIndex}.jpg";
+                        $fallbackImg = asset("grofar/img/listing/v{$imgIndex}.jpg");
+                        $displayImg = $itemImage ? asset($itemImage) : $fallbackImg;
                     @endphp
                     <div class="cart-items bg-white position-relative border-bottom p-3">
                         <div class="d-flex align-items-center">
-                            <img src="{{ $displayImg }}" onerror="this.onerror=null; this.src='/grofar/img/listing/v{{ $imgIndex }}.jpg';" class="img-fluid rounded border" style="width: 60px; height: 60px; object-fit: contain; background: #fafafa;" alt="{{ $item['name'] }}">
+                            <img src="{{ $displayImg }}" onerror="this.onerror=null; this.src='{{ $fallbackImg }}';" class="img-fluid rounded border" style="width: 60px; height: 60px; object-fit: contain; background: #fafafa;" alt="{{ $item['name'] }}">
                             
                             <div class="ms-3 text-dark text-decoration-none w-100">
                                 <div class="d-flex justify-content-between align-items-start mb-1">

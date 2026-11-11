@@ -344,4 +344,31 @@ class UserPortalController extends Controller
             'estimated_minutes' => max(3, (int) round($distanceRemainingKm * 3.5)),
         ]);
     }
+
+    /**
+     * Pelanggan Memperbarui Kode OTP Serah-Terima jika Kedaluwarsa (CUS-009, BR-010)
+     */
+    public function renewOtp(string $orderNumber)
+    {
+        $order = Order::where('customer_id', Auth::id())
+            ->where('order_number', $orderNumber)
+            ->firstOrFail();
+
+        $delivery = $order->delivery;
+        if (!$delivery || in_array($delivery->status, ['delivered', 'cancelled'])) {
+            return redirect()->back()->with('error', 'Pesanan tidak memenuhi syarat pembaruan OTP.');
+        }
+
+        $randomOtp = str_pad((string) random_int(1000, 9999), 4, '0', STR_PAD_LEFT);
+        $otpExpiryMinutes = (int) config('myethek.otp.expiry_minutes', 180);
+
+        $delivery->update([
+            'completion_otp' => $randomOtp,
+            'otp_hash' => Hash::make($randomOtp),
+            'otp_expires_at' => now()->addMinutes($otpExpiryMinutes),
+            'otp_attempts' => 0,
+        ]);
+
+        return redirect()->back()->with('success', "Kode OTP baru Anda: {$randomOtp} (aktif hingga " . now()->addMinutes($otpExpiryMinutes)->format('H:i') . "). Berikan kode ini ke kurir.");
+    }
 }

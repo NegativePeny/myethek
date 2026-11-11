@@ -175,26 +175,76 @@
                                     </div>
                                 </div>
                             @else
+                                @php
+                                    $isOtpExpired = $del->otp_expires_at && now()->greaterThan($del->otp_expires_at);
+                                    $maxAttempts = (int) config('myethek.otp.max_attempts', 5);
+                                    $remainingAttempts = max(0, $maxAttempts - (int) $del->otp_attempts);
+                                @endphp
+
+                                @if($isOtpExpired || $remainingAttempts <= 0)
+                                    <div class="alert alert-warning p-2 small mb-2 border-warning">
+                                        <div class="d-flex align-items-center justify-content-between mb-1">
+                                            <span class="fw-bold text-dark" style="font-size: 0.75rem;">
+                                                <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i> 
+                                                {{ $isOtpExpired ? 'OTP Telah Kedaluwarsa' : 'Percobaan OTP Habis' }}
+                                            </span>
+                                            <span class="badge bg-danger text-white" style="font-size: 0.65rem;">Perlu Diperbarui</span>
+                                        </div>
+                                        <p class="text-muted mb-2" style="font-size: 0.7rem;">
+                                            {{ $isOtpExpired ? 'Masa aktif OTP (3 jam) telah terlewati sehingga sistem menolak verifikasi.' : 'Batas maksimal 5x percobaan telah terlampaui.' }}
+                                        </p>
+                                        <form action="{{ route('driver.renewOtp', $del->id) }}" method="POST">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-warning w-100 fw-bold py-1 text-dark" style="font-size: 0.72rem;">
+                                                <i class="bi bi-arrow-clockwise me-1"></i> Perbarui / Dapatkan Kode OTP Baru
+                                            </button>
+                                        </form>
+                                    </div>
+                                @endif
+
                                 <!-- Form Verifikasi OTP Serah-Terima & Upload Bukti Foto POD (DRV-005 & DRV-006) -->
                                 <form action="{{ route('driver.complete', $del->id) }}" method="POST" enctype="multipart/form-data" class="p-2 bg-light rounded border">
                                     @csrf
-                                    <label class="form-label small fw-bold text-dark mb-1" style="font-size: 0.72rem;">
-                                        <i class="bi bi-key-fill text-warning me-1"></i> Masukkan Kode OTP Penerima:
-                                    </label>
-                                    <input type="text" name="otp" class="form-control form-control-sm text-center font-monospace fw-bold mb-2" 
-                                           placeholder="Contoh: {{ $del->completion_otp }}" required maxlength="6">
+                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                        <label class="form-label small fw-bold text-dark mb-0" style="font-size: 0.72rem;">
+                                            <i class="bi bi-key-fill text-warning me-1"></i> Masukkan Kode OTP Penerima:
+                                        </label>
+                                        @if($del->otp_expires_at && !$isOtpExpired)
+                                            <span class="badge bg-light text-muted border" style="font-size: 0.65rem;">
+                                                Aktif s.d {{ $del->otp_expires_at->format('H:i') }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                    <div class="input-group input-group-sm mb-2">
+                                        <input type="text" name="otp" class="form-control text-center font-monospace fw-bold" 
+                                               placeholder="Contoh: {{ $del->completion_otp }}" required maxlength="6"
+                                               value="{{ $isOtpExpired ? '' : '' }}">
+                                        <button class="btn btn-outline-secondary" type="submit" form="renewOtpForm{{ $del->id }}" title="Minta OTP Baru">
+                                            <i class="bi bi-arrow-clockwise"></i>
+                                        </button>
+                                    </div>
+
+                                    @if($del->otp_attempts > 0 && !$isOtpExpired)
+                                        <div class="text-danger small mb-2" style="font-size: 0.68rem;">
+                                            <i class="bi bi-exclamation-circle me-1"></i> Sisa percobaan OTP: {{ $remainingAttempts }}x
+                                        </div>
+                                    @endif
 
                                     <label class="form-label small fw-semibold text-secondary mb-1" style="font-size: 0.7rem;">
                                         <i class="bi bi-camera me-1"></i> Foto Bukti Serah Terima / POD (Opsional):
                                     </label>
-                                    <input type="file" name="proof_photo" class="form-control form-control-sm mb-2" accept="image/*">
+                                    <input type="file" name="pod_image" class="form-control form-control-sm mb-2" accept="image/*">
 
-                                    <button type="submit" class="btn btn-sm btn-success w-100 fw-bold py-2">
+                                    <button type="submit" class="btn btn-sm btn-success w-100 fw-bold py-2" {{ ($isOtpExpired || $remainingAttempts <= 0) ? 'disabled' : '' }}>
                                         <i class="bi bi-check2-circle me-1"></i> Verifikasi OTP & Selesaikan Pengiriman
                                     </button>
                                     <small class="text-muted d-block mt-1" style="font-size: 0.65rem;">
                                         * Ongkir Rp {{ number_format($del->fee, 0, ',', '.') }} langsung cair ke dompet saat OTP valid.
                                     </small>
+                                </form>
+
+                                <form id="renewOtpForm{{ $del->id }}" action="{{ route('driver.renewOtp', $del->id) }}" method="POST" class="d-none">
+                                    @csrf
                                 </form>
                             @endif
                         </div>

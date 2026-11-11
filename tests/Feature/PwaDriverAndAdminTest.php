@@ -163,6 +163,110 @@ class PwaDriverAndAdminTest extends TestCase
     }
 
     /**
+     * Driver dapat memperbarui OTP yang kedaluwarsa dan menyelesaikan pengantaran.
+     */
+    public function test_driver_can_renew_expired_otp_and_complete_delivery(): void
+    {
+        $driver = User::where('role', 'driver')->firstOrFail();
+        $this->session(['driver_portal_id' => $driver->id]);
+
+        $subAgen = Merchant::where('slug', 'warung-berkah-mak-ethek-gedog')->firstOrFail();
+        $customer = User::where('role', 'customer')->firstOrFail();
+
+        $order = Order::create([
+            'order_number' => 'ORD-EXP-OTP-001',
+            'customer_id' => $customer->id,
+            'merchant_id' => $subAgen->id,
+            'order_type' => 'retail',
+            'status' => 'on_delivery',
+            'subtotal' => 25000,
+            'shipping_fee' => 8000,
+            'total_amount' => 33000,
+            'payment_status' => 'paid',
+        ]);
+
+        $delivery = $order->delivery()->create([
+            'delivery_type' => 'ojol',
+            'distance_km' => 1.5,
+            'fee' => 8000,
+            'driver_id' => $driver->id,
+            'completion_otp' => '1122',
+            'otp_expires_at' => now()->subHours(2), // Kedaluwarsa sejak 2 jam lalu
+            'status' => 'picked_up',
+        ]);
+
+        $order->escrow()->create([
+            'gross_amount' => 33000,
+            'merchant_portion' => 25000,
+            'driver_portion' => 8000,
+            'status' => 'held',
+        ]);
+
+        // Coba input OTP lama yang kedaluwarsa -> harus gagal
+        $failResponse = $this->post("/driver/{$delivery->id}/complete", [
+            'otp' => '1122',
+        ]);
+        $failResponse->assertSessionHas('error');
+        $this->assertEquals('picked_up', $delivery->fresh()->status);
+
+        // Driver memperbarui OTP via route renew-otp
+        $renewResponse = $this->post("/driver/{$delivery->id}/renew-otp");
+        $renewResponse->assertRedirect();
+        $renewResponse->assertSessionHas('success');
+
+        $delivery->refresh();
+        $newOtp = $delivery->completion_otp;
+        $this->assertNotEmpty($newOtp);
+        $this->assertTrue(now()->lessThan($delivery->otp_expires_at));
+
+        // Sekarang masukkan OTP baru -> berhasil
+        $successResponse = $this->post("/driver/{$delivery->id}/complete", [
+            'otp' => $newOtp,
+        ]);
+        $successResponse->assertRedirect();
+        $this->assertEquals('delivered', $delivery->fresh()->status);
+    }
+
+    /**
+     * Pelanggan dapat memperbarui OTP pesanan mereka jika kedaluwarsa.
+     */
+    public function test_customer_can_renew_order_otp(): void
+    {
+        $customer = User::where('role', 'customer')->firstOrFail();
+        $this->actingAs($customer);
+
+        $subAgen = Merchant::where('slug', 'warung-berkah-mak-ethek-gedog')->firstOrFail();
+        $order = Order::create([
+            'order_number' => 'ORD-CUST-OTP-001',
+            'customer_id' => $customer->id,
+            'merchant_id' => $subAgen->id,
+            'order_type' => 'retail',
+            'status' => 'on_delivery',
+            'subtotal' => 20000,
+            'shipping_fee' => 8000,
+            'total_amount' => 28000,
+            'payment_status' => 'paid',
+        ]);
+
+        $delivery = $order->delivery()->create([
+            'delivery_type' => 'ojol',
+            'distance_km' => 1.0,
+            'fee' => 8000,
+            'completion_otp' => '3344',
+            'otp_expires_at' => now()->subHour(),
+            'status' => 'picked_up',
+        ]);
+
+        $response = $this->post("/user/orders/{$order->order_number}/renew-otp");
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        $delivery->refresh();
+        $this->assertNotEquals('3344', $delivery->completion_otp);
+        $this->assertTrue(now()->lessThan($delivery->otp_expires_at));
+    }
+
+    /**
      * Panel admin holding menampilkan rekapitulasi finansial dan audit ledger.
      */
     public function test_admin_overview_displays_correct_financial_metrics(): void

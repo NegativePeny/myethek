@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             TerritorySeeder::class,
             CategoryAndProductSeeder::class,
             UserAndMerchantSeeder::class,
+            DemoOrderSeeder::class,
         ]);
     }
 }

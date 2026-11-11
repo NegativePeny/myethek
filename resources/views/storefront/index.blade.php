@@ -174,7 +174,7 @@
                         <a href="{{ route('storefront.index', ['category' => $cat->slug, 'q' => $searchQuery]) }}" 
                            class="text-decoration-none">
                             <div class="bg-white shadow-sm rounded text-center p-2 {{ $isActive ? 'border border-2 border-success bg-light' : 'border' }}" style="min-height: 90px;">
-                                <img src="/grofar/img/categorie/{{ $iconFile }}" class="img-fluid px-1" style="height: 38px;" alt="{{ $cat->name }}">
+                                <img src="{{ asset('grofar/img/categorie/' . $iconFile) }}" class="img-fluid px-1" style="height: 38px;" alt="{{ $cat->name }}">
                                 <p class="m-0 pt-2 text-dark text-truncate fw-semibold" style="font-size: 0.7rem;">
                                     {{ $cat->name }}
                                 </p>
@@ -221,7 +221,7 @@
                                 $price = ($inv && $inv->retail_price > 0) ? $inv->retail_price : $product->base_price;
                             }
                             $imgIndex = ($product->id % 12) + 1;
-                            $displayImg = $product->image ? asset($product->image) : "/grofar/img/listing/v{$imgIndex}.jpg";
+                            $displayImg = $product->image ? asset($product->image) : asset("grofar/img/listing/v{$imgIndex}.jpg");
                         @endphp
 
                         <div class="col-6">

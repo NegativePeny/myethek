@@ -5,28 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#10b981">
     <meta name="description" content="Mak Ethek - Platform Belanja Kebutuhan Harian Jaringan Koperasi Jawa Timur">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
     <title>@yield('title', 'Mak Ethek - Belanja Kebutuhan Harian Desa')</title>
 
     <!-- PWA Manifest & App Icons -->
-    <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
 
     <!-- Slick Slider -->
-    <link rel="stylesheet" type="text/css" href="/grofar/vendor/slick/slick.min.css"/>
-    <link rel="stylesheet" type="text/css" href="/grofar/vendor/slick/slick-theme.min.css"/>
+    <link rel="stylesheet" type="text/css" href="{{ asset('grofar/vendor/slick/slick.min.css') }}"/>
+    <link rel="stylesheet" type="text/css" href="{{ asset('grofar/vendor/slick/slick-theme.min.css') }}"/>
     <!-- Icofont Icon-->
-    <link href="/grofar/vendor/icons/icofont.min.css" rel="stylesheet" type="text/css">
+    <link href="{{ asset('grofar/vendor/icons/icofont.min.css') }}" rel="stylesheet" type="text/css">
     <!-- Bootstrap core CSS -->
-    <link href="/grofar/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ asset('grofar/vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
     <!-- Bootstrap Icons Fallback -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <!-- Grofar Custom styles -->
-    <link href="/grofar/css/style.css" rel="stylesheet">
+    <link href="{{ asset('grofar/css/style.css') }}" rel="stylesheet">
     <!-- Sidebar CSS -->
-    <link href="/grofar/vendor/sidebar/demo.css" rel="stylesheet">
+    <link href="{{ asset('grofar/vendor/sidebar/demo.css') }}" rel="stylesheet">
 
     <style>
         :root {
@@ -228,7 +228,7 @@
     <div class="border-bottom p-3 bg-white sticky-top shadow-sm" style="z-index: 1020;">
         <div class="title d-flex align-items-center">
             <a href="{{ route('storefront.index') }}" class="text-decoration-none text-dark d-flex align-items-center">
-                <img class="osahan-logo me-2" src="/grofar/img/logo.png" style="height: 38px; width: 38px; object-fit: contain;" alt="Logo Mak Ethek">
+                <img class="osahan-logo me-2" src="{{ asset('grofar/img/logo.png') }}" style="height: 38px; width: 38px; object-fit: contain;" alt="Logo Mak Ethek">
                 <div>
                     <h5 class="fw-bold text-success m-0" style="line-height: 1.1;">Mak Ethek</h5>
                     <span class="text-muted" style="font-size: 0.65rem; letter-spacing: 0.5px;">KOPERASI JATIM</span>
@@ -343,7 +343,7 @@
                 </div>
             @else
                 <div class="d-flex align-items-center">
-                    <img src="/grofar/img/logo.png" style="height: 38px; width: 38px; object-fit: contain;" class="me-2" alt="Logo Mak Ethek">
+                    <img src="{{ asset('grofar/img/logo.png') }}" style="height: 38px; width: 38px; object-fit: contain;" class="me-2" alt="Logo Mak Ethek">
                     <div>
                         <h6 class="mb-0 fw-bold text-success">Mak Ethek</h6>
                         <small class="text-muted">Koperasi Jatim Retail</small>
@@ -410,11 +410,11 @@
 @include('storefront.partials.location-modal')
 
 <!-- Core Javascript Dependencies -->
-<script src="/grofar/vendor/jquery/jquery.min.js"></script>
-<script src="/grofar/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-<script src="/grofar/vendor/slick/slick.min.js"></script>
-<script src="/grofar/vendor/sidebar/hc-offcanvas-nav.js"></script>
-<script src="/grofar/js/osahan.js"></script>
+<script src="{{ asset('grofar/vendor/jquery/jquery.min.js') }}"></script>
+<script src="{{ asset('grofar/vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ asset('grofar/vendor/slick/slick.min.js') }}"></script>
+<script src="{{ asset('grofar/vendor/sidebar/hc-offcanvas-nav.js') }}"></script>
+<script src="{{ asset('grofar/js/osahan.js') }}"></script>
 <script>
     $(document).ready(function() {
         $('#bottomNavMenuToggle').on('click', function(e) {
@@ -428,7 +428,7 @@
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js')
+            navigator.serviceWorker.register('{{ asset('sw.js') }}')
                 .then(reg => console.log('PWA ServiceWorker registered:', reg.scope))
                 .catch(err => console.log('PWA ServiceWorker registration failed:', err));
         });

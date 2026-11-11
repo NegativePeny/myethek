@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0f766e">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-    <link rel="shortcut icon" href="/favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
     <title>@yield('title', 'Portal Mitra - Mak Ethek')</title>
 
     <!-- Bootstrap 5 CSS & Icons -->
@@ -98,7 +98,7 @@
     <header class="merchant-header">
         <div class="d-flex align-items-center justify-content-between mb-2">
             <div class="d-flex align-items-center gap-2">
-                <img src="/grofar/img/logo.png" alt="Logo Mak Ethek" style="height: 38px; width: 38px; object-fit: contain;" class="bg-white rounded-circle p-1">
+                <img src="{{ asset('grofar/img/logo.png') }}" alt="Logo Mak Ethek" style="height: 38px; width: 38px; object-fit: contain;" class="bg-white rounded-circle p-1">
                 <div>
                     <div class="d-flex align-items-center gap-2">
                         <h6 class="fw-bold mb-0" style="font-size: 0.95rem;">Portal Mitra Koperasi</h6>

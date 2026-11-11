@@ -385,6 +385,54 @@
         </div>
     @endif
 
+    <!-- Card OTP Serah-Terima Pesanan (Khusus Pelanggan) -->
+    @if($order->delivery && $order->delivery->completion_otp && !in_array($order->delivery->status, ['delivered', 'cancelled']))
+        @php
+            $isCustOtpExpired = $order->delivery->otp_expires_at && now()->greaterThan($order->delivery->otp_expires_at);
+        @endphp
+        <div class="card border rounded-3 shadow-sm bg-white mb-3 {{ $isCustOtpExpired ? 'border-warning' : 'border-success' }}">
+            <div class="card-body p-3 text-center">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="badge bg-success-subtle text-success border border-success small" style="font-size: 0.7rem;">
+                        <i class="icofont-shield-alt me-1"></i> Keamanan Escrow
+                    </span>
+                    @if($order->delivery->otp_expires_at)
+                        <span class="badge {{ $isCustOtpExpired ? 'bg-danger text-white' : 'bg-light text-muted border' }}" style="font-size: 0.68rem;">
+                            {{ $isCustOtpExpired ? 'Kedaluwarsa' : 'Aktif s.d ' . $order->delivery->otp_expires_at->format('H:i') }}
+                        </span>
+                    @endif
+                </div>
+
+                <small class="text-muted fw-bold d-block text-uppercase" style="letter-spacing: 1px; font-size: 0.7rem;">
+                    KODE OTP SERAH-TERIMA PENGANTARAN:
+                </small>
+
+                <div class="my-2 p-2 rounded bg-light border border-2 border-dashed {{ $isCustOtpExpired ? 'border-warning' : 'border-success' }}">
+                    <span class="display-6 fw-bold {{ $isCustOtpExpired ? 'text-muted' : 'text-success' }} font-monospace" style="letter-spacing: 4px;">
+                        {{ $order->delivery->completion_otp }}
+                    </span>
+                </div>
+
+                <p class="text-muted small mb-2" style="font-size: 0.72rem;">
+                    Berikan 4-digit kode OTP di atas kepada Driver KurirQ saat barang belanjaan tiba di rumah Anda untuk konfirmasi serah-terima.
+                </p>
+
+                @if($isCustOtpExpired)
+                    <div class="alert alert-warning py-1 px-2 small mb-2" style="font-size: 0.7rem;">
+                        <i class="icofont-warning-alt me-1"></i> Kode OTP telah melewati batas 3 jam. Silakan klik tombol di bawah untuk memperbarui OTP.
+                    </div>
+                @endif
+
+                <form action="{{ route('user.orders.renewOtp', $order->order_number) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 fw-bold" style="font-size: 0.75rem;">
+                        <i class="icofont-refresh me-1"></i> Perbarui / Minta Kode OTP Baru
+                    </button>
+                </form>
+            </div>
+        </div>
+    @endif
+
     <!-- Toko Penjual -->
     <div class="card border rounded-3 shadow-sm bg-white mb-3">
         <div class="card-body p-3">
@@ -461,11 +509,12 @@
                     @php
                         $prodImg = $item->product?->image;
                         $prodIdx = ($item->product_id % 12) + 1;
-                        $displayImg = $prodImg ? asset($prodImg) : "/grofar/img/listing/v{$prodIdx}.jpg";
+                        $fallbackImg = asset("grofar/img/listing/v{$prodIdx}.jpg");
+                        $displayImg = $prodImg ? asset($prodImg) : $fallbackImg;
                     @endphp
                     <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
                         <div class="d-flex align-items-center gap-2">
-                            <img src="{{ $displayImg }}" onerror="this.onerror=null; this.src='/grofar/img/listing/v{{ $prodIdx }}.jpg';" class="rounded border bg-white" style="width: 40px; height: 40px; object-fit: contain;" alt="{{ $item->product_name }}">
+                            <img src="{{ $displayImg }}" onerror="this.onerror=null; this.src='{{ $fallbackImg }}';" class="rounded border bg-white" style="width: 40px; height: 40px; object-fit: contain;" alt="{{ $item->product_name }}">
                             <div>
                                 <span class="fw-semibold text-dark small d-block">{{ $item->product_name }}</span>
                                 <small class="text-muted" style="font-size: 0.72rem;">

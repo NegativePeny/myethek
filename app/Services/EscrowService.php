@@ -34,7 +34,7 @@ class EscrowService
             if ($delivery->otp_expires_at && now()->greaterThan($delivery->otp_expires_at)) {
                 return [
                     'success' => false,
-                    'message' => 'Kode OTP pengiriman sudah kedaluwarsa (expired).',
+                    'message' => 'Kode OTP pengiriman sudah kedaluwarsa (expired). Silakan gunakan tombol "Perbarui OTP" untuk mengaktifkan kode baru.',
                 ];
             }
 

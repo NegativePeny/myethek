@@ -198,11 +198,12 @@
                 @php
                     $prodImage = $item->product?->image;
                     $pIndex = ($item->product_id % 12) + 1;
-                    $dispImg = $prodImage ? asset($prodImage) : "/grofar/img/listing/v{$pIndex}.jpg";
+                    $fallbackImg = asset("grofar/img/listing/v{$pIndex}.jpg");
+                    $dispImg = $prodImage ? asset($prodImage) : $fallbackImg;
                 @endphp
                 <div class="d-flex align-items-center justify-content-between small">
                     <div class="d-flex align-items-center gap-2">
-                        <img src="{{ $dispImg }}" onerror="this.onerror=null; this.src='/grofar/img/listing/v{{ $pIndex }}.jpg';" class="rounded border bg-white" style="width: 36px; height: 36px; object-fit: contain;" alt="{{ $item->product_name }}">
+                        <img src="{{ $dispImg }}" onerror="this.onerror=null; this.src='{{ $fallbackImg }}';" class="rounded border bg-white" style="width: 36px; height: 36px; object-fit: contain;" alt="{{ $item->product_name }}">
                         <div>
                             <span class="text-truncate fw-semibold text-dark d-block" style="max-width: 180px;">{{ $item->product_name }}</span>
                             <small class="text-muted">{{ $item->quantity }} {{ $item->unit_name }} &times; Rp {{ number_format($item->price, 0, ',', '.') }}</small>
