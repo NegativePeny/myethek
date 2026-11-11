@@ -53,6 +53,7 @@ Route::middleware('auth')->group(function () {
 Route::prefix('user')->name('user.')->middleware('auth')->group(function () {
     Route::get('/orders', [UserPortalController::class, 'orders'])->name('orders.index');
     Route::get('/orders/{order_number}', [UserPortalController::class, 'orderDetail'])->name('orders.show');
+    Route::get('/orders/{order_number}/live-tracking', [UserPortalController::class, 'liveTracking'])->name('orders.liveTracking');
     Route::post('/orders/{order_number}/cancel', [UserPortalController::class, 'cancelOrder'])->name('orders.cancel');
     Route::post('/orders/{order_number}/reorder', [UserPortalController::class, 'reorder'])->name('orders.reorder');
     Route::get('/profile', [UserPortalController::class, 'profile'])->name('profile');
@@ -83,6 +84,7 @@ Route::prefix('merchant')->name('merchant.')->middleware('role:merchant')->group
 // Portal Driver KurirQ Mak Ethek (Tampilan Mobile PWA - DRV-001..010)
 Route::prefix('driver')->name('driver.')->middleware('role:driver')->group(function () {
     Route::get('/', [DriverPortalController::class, 'index'])->name('index');
+    Route::post('/location', [DriverPortalController::class, 'updateLocation'])->name('location');
     Route::post('/{delivery_id}/respond', [DriverPortalController::class, 'respondAssignment'])->name('respond');
     Route::post('/{delivery_id}/pickup', [DriverPortalController::class, 'takeJob'])->name('pickup');
     Route::post('/{delivery_id}/complete', [DriverPortalController::class, 'completeJob'])->name('complete');

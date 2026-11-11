@@ -54,6 +54,50 @@
                 Tidak ada tugas pengantaran aktif saat ini.
             </div>
         @else
+            <!-- Panel GPS Live Tracking Driver (KurirQ) -->
+            <div class="card border-info mb-3 shadow-sm bg-white">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="spinner-grow spinner-grow-sm text-info" role="status" style="width: 10px; height: 10px;"></span>
+                            <span class="fw-bold small text-dark"><i class="bi bi-geo-alt-fill text-info me-1"></i> Live GPS KurirQ</span>
+                        </div>
+                        <span class="badge bg-info-subtle text-info border border-info small" id="gpsStatusBadge" style="font-size: 0.68rem;">
+                            GPS Siap
+                        </span>
+                    </div>
+                    <p class="text-muted small mb-2" style="font-size: 0.72rem;">
+                        Posisi GPS Anda otomatis dipantau di peta pelanggan Mak Ethek saat pengantaran sedang berlangsung.
+                    </p>
+                    <div class="d-flex gap-2 flex-wrap mb-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary flex-grow-1 fw-bold py-1" id="btnSendGps" style="font-size: 0.72rem;">
+                            <i class="bi bi-crosshair me-1"></i> Kirim Titik GPS Saya
+                        </button>
+                    </div>
+                    
+                    <!-- Simulasi Pergerakan untuk Pengujian Cepat di Desktop Browser -->
+                    <div class="p-2 bg-light rounded border">
+                        <small class="text-muted fw-bold d-block mb-1" style="font-size: 0.65rem;">
+                            <i class="bi bi-lightning-charge-fill text-warning me-1"></i> Simulasi Gerak Kurir (Uji Coba Peta):
+                        </small>
+                        <div class="d-flex gap-1 flex-wrap">
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 btn-sim-loc" data-lat="-8.098254" data-lon="112.168153" style="font-size: 0.65rem;">
+                                1. Gudang Toko
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 btn-sim-loc" data-lat="-8.103500" data-lon="112.178000" style="font-size: 0.65rem;">
+                                2. OTW (Sudirman)
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 btn-sim-loc" data-lat="-8.109000" data-lon="112.188000" style="font-size: 0.65rem;">
+                                3. Dekat Rumah
+                            </button>
+                        </div>
+                    </div>
+                    <div class="text-muted mt-2" style="font-size: 0.68rem;" id="gpsFeedback">
+                        Koordinat saat ini: {{ $driver->latitude ?? '-8.098254' }}, {{ $driver->longitude ?? '112.168153' }}
+                    </div>
+                </div>
+            </div>
+
             <div class="d-flex flex-column gap-3">
                 @foreach($activeDeliveries as $del)
                     @php
@@ -204,4 +248,115 @@
         @endif
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btnSendGps = document.getElementById('btnSendGps');
+    const gpsStatusBadge = document.getElementById('gpsStatusBadge');
+    const gpsFeedback = document.getElementById('gpsFeedback');
+    const simButtons = document.querySelectorAll('.btn-sim-loc');
+
+    const updateLocationUrl = "{{ route('driver.location') }}";
+    const csrfToken = "{{ csrf_token() }}";
+
+    async function sendCoordinates(lat, lon, deliveryId = null) {
+        if (gpsStatusBadge) {
+            gpsStatusBadge.className = 'badge bg-warning-subtle text-warning border border-warning small';
+            gpsStatusBadge.textContent = 'Mengirim GPS...';
+        }
+
+        try {
+            const res = await fetch(updateLocationUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({
+                    latitude: lat,
+                    longitude: lon,
+                    delivery_id: deliveryId
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                if (gpsStatusBadge) {
+                    gpsStatusBadge.className = 'badge bg-success-subtle text-success border border-success small';
+                    gpsStatusBadge.textContent = 'GPS Terkirim';
+                }
+                if (gpsFeedback) {
+                    const now = new Date();
+                    gpsFeedback.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i> Lokasi terkirim: <strong>${lat.toFixed(6)}, ${lon.toFixed(6)}</strong> (${now.toLocaleTimeString('id-ID')})</span>`;
+                }
+            } else {
+                throw new Error(data.message || 'Gagal mengirim lokasi');
+            }
+        } catch (e) {
+            console.error(e);
+            if (gpsStatusBadge) {
+                gpsStatusBadge.className = 'badge bg-danger-subtle text-danger border border-danger small';
+                gpsStatusBadge.textContent = 'Gagal Kirim';
+            }
+            if (gpsFeedback) {
+                gpsFeedback.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i> ${e.message}</span>`;
+            }
+        }
+    }
+
+    // Tombol Kirim GPS Perangkat Asli
+    if (btnSendGps) {
+        btnSendGps.addEventListener('click', function () {
+            if (!navigator.geolocation) {
+                alert('Browser Anda tidak mendukung Geolocation GPS.');
+                return;
+            }
+
+            if (gpsFeedback) gpsFeedback.textContent = 'Mencari sinyal GPS perangkat...';
+            navigator.geolocation.getCurrentPosition(
+                function (position) {
+                    sendCoordinates(position.coords.latitude, position.coords.longitude);
+                },
+                function (error) {
+                    alert('Gagal mendeteksi GPS: ' + error.message + '. Anda dapat menggunakan tombol Simulasi di bawah.');
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        });
+    }
+
+    // Tombol Simulasi Pergerakan untuk Pengujian di Desktop Browser
+    simButtons.forEach(btn => {
+        btn.addEventListener('click', function () {
+            const lat = parseFloat(this.getAttribute('data-lat'));
+            const lon = parseFloat(this.getAttribute('data-lon'));
+            sendCoordinates(lat, lon);
+        });
+    });
+
+    // Otomatis watchPosition jika ada pengantaran aktif dan didukung browser
+    @if($activeDeliveries->isNotEmpty())
+        if (navigator.geolocation) {
+            let lastSentTime = 0;
+            navigator.geolocation.watchPosition(
+                function (position) {
+                    const now = Date.now();
+                    // Throttle pengiriman otomatis setiap 12 detik
+                    if (now - lastSentTime > 12000) {
+                        lastSentTime = now;
+                        sendCoordinates(position.coords.latitude, position.coords.longitude);
+                    }
+                },
+                function (err) {
+                    console.log('GPS watchPosition info/skipped:', err.message);
+                },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+            );
+        }
+    @endif
+});
+</script>
 @endsection

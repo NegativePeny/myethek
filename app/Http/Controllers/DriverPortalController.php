@@ -154,9 +154,15 @@ class DriverPortalController extends Controller
             return redirect()->back()->with('error', 'Pesanan ini sudah ditugaskan ke kurir lain.');
         }
 
+        $merchantLat = $delivery->order?->merchant?->latitude ?? -8.098254;
+        $merchantLon = $delivery->order?->merchant?->longitude ?? 112.168153;
+
         $delivery->update([
             'driver_id' => $driver->id,
             'status' => 'picked_up',
+            'current_latitude' => $driver->latitude ?? $merchantLat,
+            'current_longitude' => $driver->longitude ?? $merchantLon,
+            'last_location_at' => now(),
             'assigned_at' => $delivery->assigned_at ?? now(),
             'accepted_at' => $delivery->accepted_at ?? now(),
             'picked_up_at' => now(),
@@ -167,6 +173,57 @@ class DriverPortalController extends Controller
         ]);
 
         return redirect()->route('driver.index')->with('success', "Paket {$delivery->order->order_number} berhasil di-pickup dari Gudang. Silakan antar ke alamat penerima!");
+    }
+
+    /**
+     * Driver Memperbarui Titik Koordinat GPS Secara Real-Time (DRV-003, DRV-006)
+     */
+    public function updateLocation(Request $request)
+    {
+        $driver = $this->getActiveDriver();
+
+        $validated = $request->validate([
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
+            'delivery_id' => 'nullable|exists:deliveries,id',
+        ]);
+
+        $lat = (float) $validated['latitude'];
+        $lon = (float) $validated['longitude'];
+
+        // Update titik lokasi pada akun driver
+        $driver->update([
+            'latitude' => $lat,
+            'longitude' => $lon,
+        ]);
+
+        // Update titik pada pengantaran aktif yang sedang dipegang driver
+        $deliveryQuery = Delivery::where('driver_id', $driver->id)
+            ->whereIn('status', ['assigned', 'accepted', 'picked_up', 'on_delivery']);
+
+        if (!empty($validated['delivery_id'])) {
+            $deliveryQuery->where('id', $validated['delivery_id']);
+        }
+
+        $activeDelivery = $deliveryQuery->first();
+        if ($activeDelivery) {
+            $activeDelivery->update([
+                'current_latitude' => $lat,
+                'current_longitude' => $lon,
+                'last_location_at' => now(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Titik lokasi driver berhasil diperbarui.',
+            'data' => [
+                'latitude' => $lat,
+                'longitude' => $lon,
+                'delivery_id' => $activeDelivery?->id,
+                'last_updated' => now()->toIso8601String(),
+            ],
+        ]);
     }
 
     /**

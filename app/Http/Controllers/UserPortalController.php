@@ -267,4 +267,81 @@ class UserPortalController extends Controller
 
         return back()->with('success', 'Alamat tersimpan berhasil dihapus.');
     }
+
+    /**
+     * Endpoint API Live Tracking Peta untuk Customer (CUS-004, CUS-006, DRV-003)
+     */
+    public function liveTracking(string $orderNumber, DeliveryService $deliveryService)
+    {
+        $order = Order::with(['merchant', 'delivery.driver', 'customer'])
+            ->where('order_number', $orderNumber)
+            ->where('customer_id', Auth::id())
+            ->firstOrFail();
+
+        $delivery = $order->delivery;
+        if (!$delivery) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Informasi pengiriman pesanan ini tidak ditemukan.',
+            ], 404);
+        }
+
+        $driver = $delivery->driver;
+
+        // Titik Asal (Gudang/Toko Koperasi Blitar)
+        $originLat = (float) ($order->merchant->latitude ?? -8.098254);
+        $originLon = (float) ($order->merchant->longitude ?? 112.168153);
+
+        // Titik Tujuan (Rumah Customer / Penerima)
+        $destLat = (float) ($order->shipping_latitude ?? $order->customer->latitude ?? -8.109300);
+        $destLon = (float) ($order->shipping_longitude ?? $order->customer->longitude ?? 112.189400);
+
+        // Titik Kurir: Ambil current_latitude jika ada, atau fallback ke user driver, atau fallback ke gudang
+        $driverLat = (float) ($delivery->current_latitude ?? $driver?->latitude ?? $originLat);
+        $driverLon = (float) ($delivery->current_longitude ?? $driver?->longitude ?? $originLon);
+
+        // Hitung sisa jarak driver ke rumah pelanggan
+        $distanceRemainingKm = $deliveryService->calculateDistance(
+            $driverLat,
+            $driverLon,
+            $destLat,
+            $destLon
+        );
+
+        $isSelfPickup = ($delivery->delivery_type === 'self_pickup');
+
+        return response()->json([
+            'success' => true,
+            'order_number' => $order->order_number,
+            'order_status' => $order->status,
+            'packing_status' => $order->packing_status,
+            'delivery_status' => $delivery->status,
+            'delivery_type' => $delivery->delivery_type,
+            'courier_provider' => $delivery->courier_provider ?? 'KurirQ',
+            'is_self_pickup' => $isSelfPickup,
+            'origin' => [
+                'name' => $order->merchant->store_name,
+                'address' => $order->merchant->address,
+                'latitude' => $originLat,
+                'longitude' => $originLon,
+            ],
+            'destination' => [
+                'receiver_name' => $order->recipient_name ?? $order->customer->name,
+                'phone' => $order->recipient_phone ?? $order->customer->phone,
+                'address' => $order->shipping_address,
+                'latitude' => $destLat,
+                'longitude' => $destLon,
+            ],
+            'driver' => $driver ? [
+                'id' => $driver->id,
+                'name' => $driver->name,
+                'phone' => $driver->phone,
+                'latitude' => $driverLat,
+                'longitude' => $driverLon,
+                'last_updated' => $delivery->last_location_at?->diffForHumans() ?? 'Baru saja',
+            ] : null,
+            'distance_remaining_km' => $distanceRemainingKm,
+            'estimated_minutes' => max(3, (int) round($distanceRemainingKm * 3.5)),
+        ]);
+    }
 }

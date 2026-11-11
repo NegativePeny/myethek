@@ -18,6 +18,84 @@
     </div>
 @endsection
 
+@section('styles')
+    <!-- Leaflet.js CSS (Free OpenStreetMap) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <style>
+        .tracking-map-wrapper {
+            position: relative;
+            width: 100%;
+            height: 290px;
+            border-radius: 12px;
+            overflow: hidden;
+            z-index: 1;
+            background-color: #f1f5f9;
+        }
+        #liveTrackingMap {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        .custom-map-icon {
+            background: none !important;
+            border: none !important;
+        }
+        .custom-map-pin {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.35);
+            color: #ffffff;
+            font-size: 16px;
+            border: 2.5px solid #ffffff;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .custom-map-pin:hover {
+            transform: scale(1.1);
+        }
+        .pin-store {
+            background: linear-gradient(135deg, #10b981, #059669);
+            width: 36px;
+            height: 36px;
+        }
+        .pin-driver {
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            width: 42px;
+            height: 42px;
+            position: relative;
+        }
+        .pin-driver::after {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: -6px;
+            right: -6px;
+            bottom: -6px;
+            border-radius: 50%;
+            border: 2.5px solid #0284c7;
+            opacity: 0.8;
+            animation: pulse-driver 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+        }
+        @keyframes pulse-driver {
+            0% { transform: scale(0.9); opacity: 0.9; }
+            70% { transform: scale(1.6); opacity: 0.15; }
+            100% { transform: scale(1.8); opacity: 0; }
+        }
+        .pin-dest {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            width: 36px;
+            height: 36px;
+        }
+        .leaflet-popup-content-wrapper {
+            border-radius: 10px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+            font-size: 0.78rem;
+        }
+    </style>
+@endsection
+
 @section('content')
 <div class="osahan-status p-3">
     @php
@@ -179,6 +257,133 @@
             @endif
         </div>
     </div>
+
+    <!-- Live Map Tracking Leaflet (OSM Gratis) -->
+    @if($order->status !== 'cancelled')
+        @php
+            $delivStatus = strtolower($order->delivery->status ?? 'pending');
+            $driverName = $order->delivery?->driver?->name ?? 'Kurir Mitra Koperasi';
+            $driverPhone = $order->delivery?->driver?->phone;
+            $cleanDriverPhone = preg_replace('/[^0-9]/', '', $driverPhone ?? '');
+            if (str_starts_with($cleanDriverPhone, '0')) {
+                $cleanDriverPhone = '62' . substr($cleanDriverPhone, 1);
+            }
+            $initialDistance = $order->delivery?->distance_km ?? 0;
+            $initialEstMinutes = max(3, (int) round(($initialDistance > 0 ? $initialDistance : 1) * 3.5));
+        @endphp
+        <div class="card border rounded-3 shadow-sm bg-white mb-3 overflow-hidden">
+            <div class="card-header bg-white border-bottom p-3 d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="spinner-grow spinner-grow-sm text-success" role="status" id="livePingDot" style="width: 10px; height: 10px;"></span>
+                    <div>
+                        <h6 class="fw-bold small text-dark mb-0">
+                            <i class="icofont-google-map text-success me-1"></i> 
+                            {{ $isSelfPickup ? 'Titik Pengambilan di Toko' : 'Live Tracking KurirQ' }}
+                        </h6>
+                        <small class="text-muted" style="font-size: 0.68rem;" id="trackingHeaderSubtitle">
+                            {{ $isSelfPickup ? 'Koperasi Konsumen Kota Blitar' : 'Pemantauan Posisi Kurir Real-Time' }}
+                        </small>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                    <button type="button" class="btn btn-sm btn-light border rounded-pill px-2 py-1 text-muted" id="btnManualRefresh" style="font-size: 0.7rem;">
+                        <i class="icofont-refresh me-1" id="refreshIcon"></i> <span id="refreshLabel">Sync</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Map Container -->
+            <div class="tracking-map-wrapper">
+                <div id="liveTrackingMap"></div>
+
+                <!-- Floating Live Distance & Time Card -->
+                @if(!$isSelfPickup)
+                    <div class="position-absolute bottom-0 start-0 end-0 p-2" style="z-index: 500; pointer-events: none;">
+                        <div class="bg-white rounded-3 shadow p-2 border d-flex align-items-center justify-content-between" style="pointer-events: auto; backdrop-filter: blur(10px); background-color: rgba(255,255,255,0.94);">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; font-size: 1.1rem;">
+                                    🛵
+                                </div>
+                                <div>
+                                    <span class="d-block fw-bold text-dark" style="font-size: 0.78rem;" id="trackingDriverName">
+                                        {{ $driverName }}
+                                    </span>
+                                    <span class="d-block text-muted" style="font-size: 0.68rem;" id="trackingStatusText">
+                                        @if(in_array($delivStatus, ['on_delivery', 'picked_up']))
+                                            Sedang meluncur ke alamat Anda
+                                        @elseif($delivStatus === 'delivered')
+                                            Paket telah tiba di tujuan
+                                        @elseif(in_array($delivStatus, ['assigned', 'accepted']))
+                                            Kurir menuju gudang pickup
+                                        @else
+                                            Menunggu penugasan kurir
+                                        @endif
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="text-end">
+                                    <span class="badge bg-success fw-bold d-inline-block" style="font-size: 0.75rem;" id="trackingDistanceBadge">
+                                        {{ $initialDistance > 0 ? $initialDistance . ' km' : 'Menghitung...' }}
+                                    </span>
+                                    <small class="text-muted d-block" style="font-size: 0.65rem;" id="trackingTimeEst">
+                                        ± {{ $initialEstMinutes }} mnt
+                                    </small>
+                                </div>
+                                @if($cleanDriverPhone)
+                                    <a href="https://wa.me/{{ $cleanDriverPhone }}?text=Halo%20{{ urlencode($driverName) }},%20saya%20pemesan%20nomor%20{{ $order->order_number }}" 
+                                       target="_blank" 
+                                       class="btn btn-sm btn-outline-success rounded-circle d-flex align-items-center justify-content-center shadow-sm" 
+                                       style="width: 32px; height: 32px; padding: 0;" title="Chat WhatsApp Kurir">
+                                        <i class="icofont-brand-whatsapp fs-6"></i>
+                                    </a>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                @else
+                    <div class="position-absolute bottom-0 start-0 end-0 p-2" style="z-index: 500; pointer-events: none;">
+                        <div class="bg-white rounded-3 shadow p-2 border d-flex align-items-center justify-content-between" style="pointer-events: auto;">
+                            <div>
+                                <small class="text-muted d-block" style="font-size: 0.68rem;">Titik Pengambilan:</small>
+                                <span class="fw-bold small text-dark d-block">{{ $order->merchant?->store_name }}</span>
+                            </div>
+                            @php
+                                $originLat = (float) ($order->merchant->latitude ?? -8.098254);
+                                $originLon = (float) ($order->merchant->longitude ?? 112.168153);
+                            @endphp
+                            <a href="https://www.google.com/maps/dir/?api=1&destination={{ $originLat }},{{ $originLon }}" target="_blank" class="btn btn-sm btn-primary rounded-pill px-3 py-1 fw-bold" style="font-size: 0.72rem;">
+                                <i class="icofont-direction-sign me-1"></i> Buka Rute
+                            </a>
+                        </div>
+                    </div>
+                @endif
+            </div>
+
+            <!-- Footer Live Info -->
+            <div class="card-footer bg-light p-2 border-top">
+                <div class="d-flex align-items-center justify-content-between" style="font-size: 0.7rem;">
+                    <span class="text-muted d-flex align-items-center gap-1">
+                        <i class="icofont-clock-time text-secondary"></i>
+                        <span id="lastUpdatedTime">Update: Baru saja</span>
+                    </span>
+                    @if(!$isSelfPickup && in_array($delivStatus, ['assigned', 'accepted', 'picked_up', 'on_delivery']))
+                        <span class="badge bg-success-subtle text-success border border-success" style="font-size: 0.65rem;">
+                            <i class="icofont-refresh me-1"></i> Auto-Sync Tiap 8 Detik
+                        </span>
+                    @elseif($delivStatus === 'delivered')
+                        <span class="badge bg-success text-white" style="font-size: 0.65rem;">
+                            <i class="icofont-check-circled me-1"></i> Terkirim Selesai
+                        </span>
+                    @else
+                        <span class="badge bg-light text-secondary border" style="font-size: 0.65rem;">
+                            OpenStreetMap Leaflet
+                        </span>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
 
     <!-- Toko Penjual -->
     <div class="card border rounded-3 shadow-sm bg-white mb-3">
@@ -384,4 +589,229 @@
         </a>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+    <!-- Leaflet.js JavaScript (Gratis OpenStreetMap) -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const mapContainer = document.getElementById('liveTrackingMap');
+        if (!mapContainer) return;
+
+        // Koordinat Lokasi Dasar
+        const originLat = {{ (float) ($order->merchant->latitude ?? -8.098254) }};
+        const originLon = {{ (float) ($order->merchant->longitude ?? 112.168153) }};
+        const destLat = {{ (float) ($order->shipping_latitude ?? $order->customer->latitude ?? -8.109300) }};
+        const destLon = {{ (float) ($order->shipping_longitude ?? $order->customer->longitude ?? 112.189400) }};
+        let driverLat = {{ (float) ($order->delivery?->current_latitude ?? $order->delivery?->driver?->latitude ?? -8.098254) }};
+        let driverLon = {{ (float) ($order->delivery?->current_longitude ?? $order->delivery?->driver?->longitude ?? 112.168153) }};
+        const isSelfPickup = {{ $isSelfPickup ? 'true' : 'false' }};
+        let deliveryStatus = '{{ strtolower($order->delivery?->status ?? "pending") }}';
+
+        // Inisialisasi Map Leaflet
+        const initialCenter = (!isSelfPickup && (driverLat !== originLat)) ? [driverLat, driverLon] : [originLat, originLon];
+        const map = L.map('liveTrackingMap', {
+            zoomControl: true,
+            scrollWheelZoom: false,
+        }).setView(initialCenter, 14);
+
+        // Tile Layer OpenStreetMap Gratis
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        // Icon Toko Koperasi
+        const storeIcon = L.divIcon({
+            className: 'custom-map-icon',
+            html: '<div class="custom-map-pin pin-store" title="Toko Koperasi Blitar"><i class="icofont-shop"></i></div>',
+            iconSize: [36, 36],
+            iconAnchor: [18, 18],
+            popupAnchor: [0, -18]
+        });
+
+        // Icon Rumah Pelanggan
+        const destIcon = L.divIcon({
+            className: 'custom-map-icon',
+            html: '<div class="custom-map-pin pin-dest" title="Alamat Pengantaran"><i class="icofont-home"></i></div>',
+            iconSize: [36, 36],
+            iconAnchor: [18, 18],
+            popupAnchor: [0, -18]
+        });
+
+        // Icon Motor KurirQ
+        const driverIcon = L.divIcon({
+            className: 'custom-map-icon',
+            html: '<div class="custom-map-pin pin-driver" title="KurirQ Mak Ethek"><span style="font-size: 20px; line-height: 1;">🛵</span></div>',
+            iconSize: [42, 42],
+            iconAnchor: [21, 21],
+            popupAnchor: [0, -21]
+        });
+
+        // Pasang Marker Toko
+        const storeMarker = L.marker([originLat, originLon], { icon: storeIcon }).addTo(map);
+        storeMarker.bindPopup(`
+            <div style="min-width: 160px;">
+                <strong class="text-success d-block"><i class="icofont-shop me-1"></i>{{ addslashes($order->merchant->store_name ?? 'Gudang Koperasi Blitar') }}</strong>
+                <small class="text-muted d-block">{{ addslashes($order->merchant->address ?? 'Jl. Merdeka No. 45, Blitar') }}</small>
+            </div>
+        `);
+
+        let destMarker = null;
+        let driverMarker = null;
+        let routePolyline = null;
+
+        if (!isSelfPickup) {
+            // Pasang Marker Rumah Pelanggan
+            destMarker = L.marker([destLat, destLon], { icon: destIcon }).addTo(map);
+            destMarker.bindPopup(`
+                <div style="min-width: 160px;">
+                    <strong class="text-danger d-block"><i class="icofont-home me-1"></i>Alamat Pengantaran</strong>
+                    <small class="text-dark d-block fw-semibold">{{ addslashes($order->recipient_name ?? $order->customer->name ?? 'Pelanggan') }}</small>
+                    <small class="text-muted d-block">{{ addslashes($order->shipping_address ?? 'Kota Blitar') }}</small>
+                </div>
+            `);
+
+            // Pasang Marker Kurir
+            driverMarker = L.marker([driverLat, driverLon], { icon: driverIcon }).addTo(map);
+            driverMarker.bindPopup(`
+                <div style="min-width: 160px;">
+                    <strong class="text-primary d-block">🛵 Kurir KurirQ Blitar</strong>
+                    <small class="text-dark d-block fw-semibold" id="popupDriverName">{{ addslashes($order->delivery?->driver?->name ?? 'Kurir Mitra') }}</small>
+                    <small class="text-muted d-block" id="popupDriverStatus">Melaju mengantar pesanan</small>
+                </div>
+            `);
+
+            // Garis Jalur Pengantaran (Polyline)
+            const routeCoords = [
+                [originLat, originLon],
+                [driverLat, driverLon],
+                [destLat, destLon]
+            ];
+            routePolyline = L.polyline(routeCoords, {
+                color: '#0284c7',
+                weight: 4,
+                opacity: 0.85,
+                dashArray: '8, 8',
+                lineJoin: 'round'
+            }).addTo(map);
+
+            // Sesuaikan Zoom & View Peta agar seluruh titik muat dalam layar
+            try {
+                const bounds = L.latLngBounds([
+                    [originLat, originLon],
+                    [driverLat, driverLon],
+                    [destLat, destLon]
+                ]);
+                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+            } catch (err) {
+                console.warn('Map fitBounds err:', err);
+            }
+        } else {
+            storeMarker.openPopup();
+        }
+
+        // AJAX Polling Fungsi Live Tracking
+        const liveTrackingUrl = "{{ route('user.orders.liveTracking', $order->order_number) }}";
+        let isPollingActive = true;
+
+        async function updateTracking() {
+            try {
+                const response = await fetch(liveTrackingUrl, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                if (!response.ok) return;
+                const result = await response.json();
+                if (!result.success) return;
+
+                // Update posisi kurir jika ada
+                if (result.driver && driverMarker) {
+                    const newLat = parseFloat(result.driver.latitude);
+                    const newLon = parseFloat(result.driver.longitude);
+
+                    // Gerakkan marker kurir dengan mulus
+                    driverMarker.setLatLng([newLat, newLon]);
+
+                    // Update rute polyline
+                    if (routePolyline) {
+                        routePolyline.setLatLngs([
+                            [result.origin.latitude, result.origin.longitude],
+                            [newLat, newLon],
+                            [result.destination.latitude, result.destination.longitude]
+                        ]);
+                    }
+
+                    // Update UI Cards
+                    const driverNameEl = document.getElementById('trackingDriverName');
+                    if (driverNameEl) driverNameEl.textContent = result.driver.name;
+
+                    const distBadgeEl = document.getElementById('trackingDistanceBadge');
+                    if (distBadgeEl) distBadgeEl.textContent = result.distance_remaining_km + ' km';
+
+                    const timeEstEl = document.getElementById('trackingTimeEst');
+                    if (timeEstEl) timeEstEl.textContent = '± ' + result.estimated_minutes + ' mnt';
+
+                    const popupDriverName = document.getElementById('popupDriverName');
+                    if (popupDriverName) popupDriverName.textContent = result.driver.name;
+
+                    const statusTextEl = document.getElementById('trackingStatusText');
+                    if (statusTextEl) {
+                        if (result.delivery_status === 'delivered') {
+                            statusTextEl.textContent = 'Pesanan telah sampai di tujuan!';
+                            statusTextEl.className = 'd-block text-success fw-bold';
+                            isPollingActive = false;
+                        } else if (result.delivery_status === 'on_delivery' || result.delivery_status === 'picked_up') {
+                            statusTextEl.textContent = 'Sedang meluncur ke alamat Anda';
+                        } else {
+                            statusTextEl.textContent = 'Kurir bersiap mengantar';
+                        }
+                    }
+
+                    const lastUpdatedEl = document.getElementById('lastUpdatedTime');
+                    if (lastUpdatedEl) {
+                        const now = new Date();
+                        const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        lastUpdatedEl.textContent = 'Update: ' + timeStr;
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching live tracking:', err);
+            }
+        }
+
+        // Tombol Sync Manual
+        const btnRefresh = document.getElementById('btnManualRefresh');
+        const refreshLabel = document.getElementById('refreshLabel');
+        const refreshIcon = document.getElementById('refreshIcon');
+
+        if (btnRefresh) {
+            btnRefresh.addEventListener('click', async function () {
+                if (refreshIcon) refreshIcon.classList.add('icofont-spin');
+                if (refreshLabel) refreshLabel.textContent = 'Sync...';
+                await updateTracking();
+                setTimeout(() => {
+                    if (refreshIcon) refreshIcon.classList.remove('icofont-spin');
+                    if (refreshLabel) refreshLabel.textContent = 'Sync';
+                }, 500);
+            });
+        }
+
+        // Jalankan polling otomatis tiap 8 detik jika status pengiriman sedang aktif
+        const activeDeliveryStatuses = ['assigned', 'accepted', 'picked_up', 'on_delivery'];
+        if (!isSelfPickup && activeDeliveryStatuses.includes(deliveryStatus)) {
+            const intervalId = setInterval(() => {
+                if (!isPollingActive) {
+                    clearInterval(intervalId);
+                    return;
+                }
+                updateTracking();
+            }, 8000);
+        }
+    });
+    </script>
 @endsection
