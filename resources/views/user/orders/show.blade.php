@@ -66,6 +66,17 @@
             height: 42px;
             position: relative;
         }
+        .driver-icon-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.4s ease-out;
+        }
+        .custom-driver-marker {
+            transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+        }
         .pin-driver::after {
             content: '';
             position: absolute;
@@ -689,10 +700,10 @@
             popupAnchor: [0, -18]
         });
 
-        // Icon Motor KurirQ
+        // Icon Motor KurirQ dengan container rotasi hadap jalan
         const driverIcon = L.divIcon({
-            className: 'custom-map-icon',
-            html: '<div class="custom-map-pin pin-driver" title="KurirQ Mak Ethek"><span style="font-size: 20px; line-height: 1;">🛵</span></div>',
+            className: 'custom-map-icon custom-driver-marker',
+            html: '<div class="custom-map-pin pin-driver" title="KurirQ Mak Ethek"><div class="driver-icon-inner" id="driverIconRotate"><span style="font-size: 20px; line-height: 1;">🛵</span></div></div>',
             iconSize: [42, 42],
             iconAnchor: [21, 21],
             popupAnchor: [0, -21]
@@ -709,7 +720,119 @@
 
         let destMarker = null;
         let driverMarker = null;
-        let routePolyline = null;
+        let routeBgPolyline = null;
+        let routeMainPolyline = null;
+        let routePickupPolyline = null;
+        let currentRoadCoords = [];
+        let previousDriverPos = [driverLat, driverLon];
+
+        // Algoritma Snap-to-Road (Map Matching) untuk mengunci posisi GPS ke aspal jalan
+        function projectPointToSegment(px, py, x1, y1, x2, y2) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            if (dx === 0 && dy === 0) return { lat: x1, lon: y1 };
+            let t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
+            t = Math.max(0, Math.min(1, t));
+            return { lat: x1 + t * dx, lon: y1 + t * dy };
+        }
+
+        function snapToRoad(pointLat, pointLon, roadCoords, maxToleranceMeters = 85) {
+            if (!roadCoords || roadCoords.length < 2) return [pointLat, pointLon];
+            let bestPoint = [pointLat, pointLon];
+            let minDistanceMeters = Infinity;
+
+            for (let i = 0; i < roadCoords.length - 1; i++) {
+                const p1 = roadCoords[i];
+                const p2 = roadCoords[i + 1];
+                const proj = projectPointToSegment(pointLat, pointLon, p1[0], p1[1], p2[0], p2[1]);
+
+                const dLatM = (proj.lat - pointLat) * 111320;
+                const dLonM = (proj.lon - pointLon) * (111320 * Math.cos(pointLat * Math.PI / 180));
+                const distM = Math.sqrt(dLatM * dLatM + dLonM * dLonM);
+
+                if (distM < minDistanceMeters) {
+                    minDistanceMeters = distM;
+                    bestPoint = [proj.lat, proj.lon];
+                }
+            }
+
+            return (minDistanceMeters <= maxToleranceMeters) ? bestPoint : [pointLat, pointLon];
+        }
+
+        // Hitung sudut hadap motor (bearing)
+        function calculateHeading(lat1, lon1, lat2, lon2) {
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const y = Math.sin(dLon) * Math.cos(lat2 * Math.PI / 180);
+            const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
+                      Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLon);
+            let brng = Math.atan2(y, x) * 180 / Math.PI;
+            return (brng + 360) % 360;
+        }
+
+        // Ambil rute jalan riil dari OSRM (OpenStreetMap Routing Engine)
+        async function fetchOsrmRoadRoute(startLat, startLon, endLat, endLon) {
+            const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${endLon},${endLat}?overview=full&geometries=geojson`;
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('OSRM response status ' + res.status);
+                const data = await res.json();
+                if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                    const r = data.routes[0];
+                    const leafletCoords = r.geometry.coordinates.map(c => [c[1], c[0]]);
+                    return {
+                        coordinates: leafletCoords,
+                        distanceKm: (r.distance / 1000).toFixed(1),
+                        durationMin: Math.max(2, Math.ceil(r.duration / 60))
+                    };
+                }
+            } catch (err) {
+                console.warn('OSRM Road Routing notice (fallback aktif):', err.message);
+            }
+            return {
+                coordinates: [[startLat, startLon], [endLat, endLon]],
+                distanceKm: null,
+                durationMin: null
+            };
+        }
+
+        // Render rute jalan berlekuk (Dual Layer Polyline seperti Grab/Gojek)
+        async function renderRoadRoute(startLat, startLon, endLat, endLon) {
+            const routeData = await fetchOsrmRoadRoute(startLat, startLon, endLat, endLon);
+            currentRoadCoords = routeData.coordinates;
+
+            if (routeBgPolyline) map.removeLayer(routeBgPolyline);
+            if (routeMainPolyline) map.removeLayer(routeMainPolyline);
+
+            // Layer Bawah (Casing/Bayangan Jalan)
+            routeBgPolyline = L.polyline(currentRoadCoords, {
+                color: '#047857',
+                weight: 7,
+                opacity: 0.35,
+                lineCap: 'round',
+                lineJoin: 'round'
+            }).addTo(map);
+
+            // Layer Atas (Garis Jalan Hijau Neon Ojol)
+            routeMainPolyline = L.polyline(currentRoadCoords, {
+                color: '#10b981',
+                weight: 4.5,
+                opacity: 0.95,
+                lineCap: 'round',
+                lineJoin: 'round'
+            }).addTo(map);
+
+            // Perbarui badge jarak & waktu dengan data jalan riil jika tersedia
+            if (routeData.distanceKm) {
+                const distBadgeEl = document.getElementById('trackingDistanceBadge');
+                if (distBadgeEl) distBadgeEl.textContent = routeData.distanceKm + ' km';
+            }
+            if (routeData.durationMin) {
+                const timeEstEl = document.getElementById('trackingTimeEst');
+                if (timeEstEl) timeEstEl.textContent = '± ' + routeData.durationMin + ' mnt';
+            }
+
+            return routeData;
+        }
 
         if (!isSelfPickup) {
             // Pasang Marker Rumah Pelanggan
@@ -732,38 +855,46 @@
                 </div>
             `);
 
-            // Garis Jalur Pengantaran (Polyline)
-            const routeCoords = [
-                [originLat, originLon],
-                [driverLat, driverLon],
-                [destLat, destLon]
-            ];
-            routePolyline = L.polyline(routeCoords, {
-                color: '#0284c7',
-                weight: 4,
-                opacity: 0.85,
-                dashArray: '8, 8',
-                lineJoin: 'round'
-            }).addTo(map);
+            // Gambar rute jalan raya perdana mengikuti alur OpenStreetMap
+            const routeStartLat = (['on_delivery', 'picked_up'].includes(deliveryStatus)) ? driverLat : originLat;
+            const routeStartLon = (['on_delivery', 'picked_up'].includes(deliveryStatus)) ? driverLon : originLon;
 
-            // Sesuaikan Zoom & View Peta agar seluruh titik muat dalam layar
-            try {
-                const bounds = L.latLngBounds([
-                    [originLat, originLon],
-                    [driverLat, driverLon],
-                    [destLat, destLon]
-                ]);
-                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
-            } catch (err) {
-                console.warn('Map fitBounds err:', err);
-            }
+            renderRoadRoute(routeStartLat, routeStartLon, destLat, destLon).then(() => {
+                // Kunci posisi awal kurir ke jalan raya terdekat
+                const initialSnapped = snapToRoad(driverLat, driverLon, currentRoadCoords);
+                driverMarker.setLatLng(initialSnapped);
+                previousDriverPos = initialSnapped;
+
+                // Jika kurir masih menuju toko, buat garis dashed penghubung dari kurir ke toko
+                if (['assigned', 'accepted'].includes(deliveryStatus)) {
+                    routePickupPolyline = L.polyline([[driverLat, driverLon], [originLat, originLon]], {
+                        color: '#0284c7',
+                        weight: 3,
+                        dashArray: '6, 6',
+                        opacity: 0.8
+                    }).addTo(map);
+                }
+
+                // Sesuaikan Zoom & View Peta agar seluruh titik muat dalam layar
+                try {
+                    const bounds = L.latLngBounds([
+                        [originLat, originLon],
+                        [driverLat, driverLon],
+                        [destLat, destLon]
+                    ]);
+                    map.fitBounds(bounds, { padding: [45, 45], maxZoom: 16 });
+                } catch (err) {
+                    console.warn('Map fitBounds notice:', err);
+                }
+            });
         } else {
             storeMarker.openPopup();
         }
 
-        // AJAX Polling Fungsi Live Tracking
+        // AJAX Polling Fungsi Live Tracking Real-Time
         const liveTrackingUrl = "{{ route('user.orders.liveTracking', $order->order_number) }}";
         let isPollingActive = true;
+        let lastRouteUpdateCoord = null;
 
         async function updateTracking() {
             try {
@@ -780,19 +911,39 @@
 
                 // Update posisi kurir jika ada
                 if (result.driver && driverMarker) {
-                    const newLat = parseFloat(result.driver.latitude);
-                    const newLon = parseFloat(result.driver.longitude);
+                    const rawLat = parseFloat(result.driver.latitude);
+                    const rawLon = parseFloat(result.driver.longitude);
 
-                    // Gerakkan marker kurir dengan mulus
+                    // Snap koordinat mentah GPS ke garis aspal jalan OSM
+                    const snappedPos = snapToRoad(rawLat, rawLon, currentRoadCoords);
+                    const newLat = snappedPos[0];
+                    const newLon = snappedPos[1];
+
+                    // Hitung heading / rotasi sudut motor
+                    if (previousDriverPos && (previousDriverPos[0] !== newLat || previousDriverPos[1] !== newLon)) {
+                        const heading = calculateHeading(previousDriverPos[0], previousDriverPos[1], newLat, newLon);
+                        const rotateEl = document.getElementById('driverIconRotate');
+                        if (rotateEl) {
+                            rotateEl.style.transform = `rotate(${Math.round(heading)}deg)`;
+                        }
+                    }
+                    previousDriverPos = [newLat, newLon];
+
+                    // Gerakkan marker kurir dengan mulus (smooth movement)
                     driverMarker.setLatLng([newLat, newLon]);
 
-                    // Update rute polyline
-                    if (routePolyline) {
-                        routePolyline.setLatLngs([
-                            [result.origin.latitude, result.origin.longitude],
-                            [newLat, newLon],
-                            [result.destination.latitude, result.destination.longitude]
-                        ]);
+                    // Update rute jalan jika driver bergerak signifikan (> 100m) atau berganti status
+                    const currentStatus = result.delivery_status;
+                    const shouldRecalculateRoute = !lastRouteUpdateCoord || 
+                        (Math.abs(lastRouteUpdateCoord[0] - newLat) > 0.001 || Math.abs(lastRouteUpdateCoord[1] - newLon) > 0.001);
+
+                    if (['on_delivery', 'picked_up'].includes(currentStatus) && shouldRecalculateRoute) {
+                        lastRouteUpdateCoord = [newLat, newLon];
+                        if (routePickupPolyline) {
+                            map.removeLayer(routePickupPolyline);
+                            routePickupPolyline = null;
+                        }
+                        renderRoadRoute(newLat, newLon, result.destination.latitude, result.destination.longitude);
                     }
 
                     // Update UI Cards
@@ -800,10 +951,14 @@
                     if (driverNameEl) driverNameEl.textContent = result.driver.name;
 
                     const distBadgeEl = document.getElementById('trackingDistanceBadge');
-                    if (distBadgeEl) distBadgeEl.textContent = result.distance_remaining_km + ' km';
+                    if (distBadgeEl && !currentRoadCoords.length) {
+                        distBadgeEl.textContent = result.distance_remaining_km + ' km';
+                    }
 
                     const timeEstEl = document.getElementById('trackingTimeEst');
-                    if (timeEstEl) timeEstEl.textContent = '± ' + result.estimated_minutes + ' mnt';
+                    if (timeEstEl && !currentRoadCoords.length) {
+                        timeEstEl.textContent = '± ' + result.estimated_minutes + ' mnt';
+                    }
 
                     const popupDriverName = document.getElementById('popupDriverName');
                     if (popupDriverName) popupDriverName.textContent = result.driver.name;
@@ -817,7 +972,7 @@
                         } else if (result.delivery_status === 'on_delivery' || result.delivery_status === 'picked_up') {
                             statusTextEl.textContent = 'Sedang meluncur ke alamat Anda';
                         } else {
-                            statusTextEl.textContent = 'Kurir bersiap mengantar';
+                            statusTextEl.textContent = 'Kurir bersiap menuju toko';
                         }
                     }
 
