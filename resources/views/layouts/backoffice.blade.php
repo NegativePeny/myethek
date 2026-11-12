@@ -166,54 +166,75 @@
             </small>
         </div>
 
-        <!-- Menu Super Admin & Finance -->
-        <div class="sidebar-section-title">Super Admin & Finance</div>
-        <a href="{{ route('finance.index') }}" class="sidebar-nav-link {{ request()->routeIs('finance.*') || request()->routeIs('superadmin.*') ? 'active' : '' }}">
-            <i class="bi bi-pie-chart-fill"></i>
-            <span>KPI Eksekutif & Keuangan</span>
-        </a>
-        <a href="{{ route('finance.index') }}#section-doku" class="sidebar-nav-link">
-            <i class="bi bi-shield-check"></i>
-            <span>Rekonsiliasi DOKU & Refund</span>
-        </a>
-        <a href="{{ route('finance.index') }}#section-b2b" class="sidebar-nav-link">
-            <i class="bi bi-building-check"></i>
-            <span>Verifikasi Akun B2B (Rp1 Jt)</span>
-        </a>
-        <a href="{{ route('finance.index') }}#section-audit" class="sidebar-nav-link">
-            <i class="bi bi-journal-code"></i>
-            <span>Audit Trail & Keamanan</span>
-        </a>
+        @php
+            $currentRole = auth()->user()?->role;
+        @endphp
 
-        <!-- Menu Admin Gudang & Operasional Koperasi -->
-        <div class="sidebar-section-title">Admin Gudang & Koperasi</div>
-        <a href="{{ route('warehouse.index') }}" class="sidebar-nav-link {{ request()->routeIs('warehouse.*') && request('tab', 'picking') === 'picking' ? 'active' : '' }}">
-            <i class="bi bi-box-seam-fill"></i>
-            <span>WMS Picking, Packing & Handover</span>
-        </a>
-        <a href="{{ route('warehouse.index', ['tab' => 'inventory']) }}" class="sidebar-nav-link {{ request()->routeIs('warehouse.*') && request('tab') === 'inventory' ? 'active' : '' }}">
-            <i class="bi bi-boxes"></i>
-            <span>Stok Gudang & Stock Movement</span>
-        </a>
-        <a href="{{ route('admin.index') }}" class="sidebar-nav-link {{ request()->routeIs('admin.index') ? 'active' : '' }}">
-            <i class="bi bi-clipboard2-data-fill"></i>
-            <span>Manajemen Order & Dispatch</span>
-        </a>
-        <a href="{{ route('admin.products.index') }}" class="sidebar-nav-link {{ request()->routeIs('admin.products.*') ? 'active' : '' }}">
-            <i class="bi bi-tags-fill"></i>
-            <span>Master SKU & Harga B2C/B2B</span>
-        </a>
+        @if($currentRole === 'warehouse')
+            <!-- Khusus Role Web Gudang: Hanya Tampilkan Menu Operasional Gudang (WMS) -->
+            <div class="sidebar-section-title">Admin Gudang (WMS)</div>
+            <a href="{{ route('warehouse.index') }}" class="sidebar-nav-link {{ request()->routeIs('warehouse.*') && request('tab', 'picking') === 'picking' ? 'active' : '' }}">
+                <i class="bi bi-box-seam-fill"></i>
+                <span>WMS Picking, Packing & Handover</span>
+            </a>
+            <a href="{{ route('warehouse.index', ['tab' => 'inventory']) }}" class="sidebar-nav-link {{ request()->routeIs('warehouse.*') && request('tab') === 'inventory' ? 'active' : '' }}">
+                <i class="bi bi-boxes"></i>
+                <span>Stok Gudang & Stock Movement</span>
+            </a>
+        @else
+            @if(in_array($currentRole, ['superadmin', 'finance', 'admin']))
+                <!-- Menu Super Admin & Finance -->
+                <div class="sidebar-section-title">Super Admin & Finance</div>
+                <a href="{{ route('finance.index') }}" class="sidebar-nav-link {{ request()->routeIs('finance.*') || request()->routeIs('superadmin.*') ? 'active' : '' }}">
+                    <i class="bi bi-pie-chart-fill"></i>
+                    <span>KPI Eksekutif & Keuangan</span>
+                </a>
+                <a href="{{ route('finance.index') }}#section-doku" class="sidebar-nav-link">
+                    <i class="bi bi-shield-check"></i>
+                    <span>Rekonsiliasi DOKU & Refund</span>
+                </a>
+                <a href="{{ route('finance.index') }}#section-b2b" class="sidebar-nav-link">
+                    <i class="bi bi-building-check"></i>
+                    <span>Verifikasi Akun B2B (Rp1 Jt)</span>
+                </a>
+                <a href="{{ route('finance.index') }}#section-audit" class="sidebar-nav-link">
+                    <i class="bi bi-journal-code"></i>
+                    <span>Audit Trail & Keamanan</span>
+                </a>
+            @endif
 
-        <!-- Pintasan Pratinjau Tampilan Mobile -->
-        <div class="sidebar-section-title">Akses Aplikasi Mobile</div>
-        <a href="{{ route('storefront.index') }}" class="sidebar-nav-link">
-            <i class="bi bi-phone-fill text-info"></i>
-            <span>Tampilan Mobile User (PWA)</span>
-        </a>
-        <a href="{{ route('driver.index') }}" class="sidebar-nav-link">
-            <i class="bi bi-scooter text-warning"></i>
-            <span>Tampilan Mobile Driver KurirQ</span>
-        </a>
+            @if(in_array($currentRole, ['superadmin', 'admin']))
+                <!-- Menu Admin Gudang & Operasional Koperasi -->
+                <div class="sidebar-section-title">Operasional Gudang & Koperasi</div>
+                <a href="{{ route('warehouse.index') }}" class="sidebar-nav-link {{ request()->routeIs('warehouse.*') && request('tab', 'picking') === 'picking' ? 'active' : '' }}">
+                    <i class="bi bi-box-seam-fill"></i>
+                    <span>WMS Picking, Packing & Handover</span>
+                </a>
+                <a href="{{ route('warehouse.index', ['tab' => 'inventory']) }}" class="sidebar-nav-link {{ request()->routeIs('warehouse.*') && request('tab') === 'inventory' ? 'active' : '' }}">
+                    <i class="bi bi-boxes"></i>
+                    <span>Stok Gudang & Stock Movement</span>
+                </a>
+                <a href="{{ route('admin.index') }}" class="sidebar-nav-link {{ request()->routeIs('admin.index') ? 'active' : '' }}">
+                    <i class="bi bi-clipboard2-data-fill"></i>
+                    <span>Manajemen Order & Dispatch</span>
+                </a>
+                <a href="{{ route('admin.products.index') }}" class="sidebar-nav-link {{ request()->routeIs('admin.products.*') ? 'active' : '' }}">
+                    <i class="bi bi-tags-fill"></i>
+                    <span>Master SKU & Harga B2C/B2B</span>
+                </a>
+
+                <!-- Pintasan Pratinjau Tampilan Mobile -->
+                <div class="sidebar-section-title">Akses Aplikasi Mobile</div>
+                <a href="{{ route('storefront.index') }}" class="sidebar-nav-link">
+                    <i class="bi bi-phone-fill text-info"></i>
+                    <span>Tampilan Mobile User (PWA)</span>
+                </a>
+                <a href="{{ route('driver.index') }}" class="sidebar-nav-link">
+                    <i class="bi bi-scooter text-warning"></i>
+                    <span>Tampilan Mobile Driver KurirQ</span>
+                </a>
+            @endif
+        @endif
 
         <div class="mt-auto p-3 border-top border-secondary border-opacity-25">
             @auth

@@ -212,7 +212,15 @@ class PilotBlitarPrdSotTest extends TestCase
 
         // 2. Warehouse Admin views Desktop WMS & progresses Pick -> Pack -> Handover to Driver
         $wmsView = $this->actingAs($warehouseAdmin)->get(route('warehouse.index'));
-        $wmsView->assertStatus(200)->assertSee('Warehouse Management System (WMS)');
+        $wmsView->assertStatus(200)
+            ->assertSee('Warehouse Management System (WMS)')
+            ->assertSee('Admin Gudang (WMS)')
+            ->assertSee('WMS Picking, Packing & Handover', false)
+            ->assertSee('Stok Gudang & Stock Movement', false)
+            ->assertDontSee('Manajemen Order & Dispatch')
+            ->assertDontSee('Master SKU & Harga B2C/B2B')
+            ->assertDontSee('Super Admin & Finance')
+            ->assertDontSee('Rekonsiliasi DOKU & Refund');
 
         $orderItem = $order->items->first();
         $this->actingAs($warehouseAdmin)->post(route('warehouse.pickItem', $orderItem->id), [
